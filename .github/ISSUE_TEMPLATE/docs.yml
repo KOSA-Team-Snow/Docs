@@ -1,0 +1,30 @@
+name: Docs
+description: 문서, 회의록, 의사결정, 발표자료
+title: "[Docs] "
+labels: ["type:docs"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 문서 작업 내용
+      placeholder: 무엇을 작성하거나 수정하나요?
+    validations:
+      required: true
+
+  - type: input
+    id: owner
+    attributes:
+      label: 담당
+      placeholder: "정: @username / 부: @username"
+    validations:
+      required: true
+
+  - type: textarea
+    id: checklist
+    attributes:
+      label: 포함할 내용
+      placeholder: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: false
