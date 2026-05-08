@@ -9,6 +9,7 @@ FlaskApp 소스코드를 분석하여 컨테이너 실행에 필요한 환경변
 | 구분 | 담당 |
 |---|---|
 | 정(Lead) | 팀원 C / @ireneminhee |
+| 부(Partner) | 팀원 B / @realhjung |
 
 ## 필수 환경변수
 
