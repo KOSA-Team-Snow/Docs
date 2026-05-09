@@ -1,4 +1,4 @@
-# Day 1 - Kubernetes 구성 요소 선정
+# Day 1 - 3.Kubernetes 구성 요소 선정
 
 ## 1. 작업 목적
 
