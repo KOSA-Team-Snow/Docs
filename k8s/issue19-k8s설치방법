@@ -1,0 +1,80 @@
+# Day 1 - Kubernetes 설치 방식 선정
+
+## 1. 작업 목적
+
+팀원 B의 Kubernetes Platform 역할에서 첫 번째로 결정해야 할 사항은 온프레미스 Kubernetes 클러스터를 어떤 방식으로 구축할지 정하는 것이다.
+
+이번 프로젝트는 Proxmox 위에 생성한 VM을 Kubernetes 노드로 사용하고, 이후 AWS EKS 기반 DR 환경과 비교 및 전환하는 구조이다. 따라서 온프레미스 Kubernetes는 구성 요소를 직접 확인하고 설명할 수 있는 방식으로 구축한다.
+
+## 2. 설치 방식 결정
+
+온프레미스 Kubernetes 설치 방식은 `kubeadm`으로 결정한다.
+
+| 항목 | 결정 내용 |
+| --- | --- |
+| 설치 방식 | kubeadm |
+| 대상 환경 | Proxmox VM 기반 온프레미스 |
+| 클러스터 방향 | HA Control Plane 구성 |
+| 컨테이너 런타임 | containerd |
+| 이후 비교 대상 | AWS EKS |
+
+## 3. kubeadm 선택 이유
+
+### 3.1 Kubernetes 표준 구성 이해에 적합
+
+`kubeadm`은 Kubernetes 클러스터를 직접 구성하는 대표적인 방식이다. Control Plane 초기화, Worker Node Join, 인증서 구성, kubeconfig 설정 등 Kubernetes 클러스터의 핵심 흐름을 직접 확인할 수 있다.
+
+프로젝트 발표 시에도 "Kubernetes가 어떤 구성 요소로 동작하는지"를 설명하기 쉽다.
+
+### 3.2 Proxmox VM 기반 온프레미스 환경에 적합
+
+이번 프로젝트의 온프레미스 환경은 물리 PC 5대와 Proxmox 기반 VM으로 구성된다. `kubeadm`은 VM 단위로 control plane과 worker node를 나누어 구성하기 좋고, 노드 추가 및 재구성 절차도 명확하다.
+
+### 3.3 HA Control Plane 구성 실습 가능
+
+`kubeadm`을 사용하면 단일 Control Plane뿐 아니라 다중 Control Plane 구성을 직접 실습할 수 있다. 이를 통해 온프레미스 Kubernetes의 고가용성 구조를 이해하고, 장애 상황에서 어떤 부분을 확인해야 하는지도 정리할 수 있다.
+
+### 3.4 Ansible 자동화와 연계 가능
+
+Day 4 이후 작업에서는 Kubernetes 사전 패키지 설치와 설정을 Ansible로 자동화할 예정이다. `kubeadm`은 명령어 기반 설치 절차가 명확하기 때문에 Ansible playbook으로 전환하기 쉽다.
+
+### 3.5 EKS와 비교하기 좋음
+
+AWS EKS는 Control Plane을 AWS가 관리하는 Managed Kubernetes 서비스이다. 반면 온프레미스 `kubeadm` 구성은 Control Plane과 Worker Node를 직접 관리한다.
+
+따라서 두 환경을 비교하면 다음 차이를 설명하기 좋다.
+
+| 비교 항목 | On-prem kubeadm | AWS EKS |
+| --- | --- | --- |
+| Control Plane | 직접 설치 및 관리 | AWS 관리 |
+| Worker Node | 직접 VM 구성 | EC2 Node Group 또는 Fargate |
+| 네트워크 | MetalLB, Ingress 직접 구성 | VPC, ALB Controller 연동 |
+| 운영 책임 | 팀에서 직접 관리 | AWS와 사용자 책임 분리 |
+| DR 전환 설명 | 직접 구성한 클러스터에서 EKS로 전환 | DR 대상 환경 |
+
+## 4. 검토한 대안
+
+| 대안 | 검토 결과 |
+| --- | --- |
+| kubeadm | 선택. 표준 Kubernetes 구성 학습과 온프레미스 구축에 적합 |
+| k3s | 경량 Kubernetes로 편리하지만, HA Control Plane과 표준 구성 설명에는 kubeadm보다 약함 |
+| MicroK8s | 단일 노드 또는 간단한 실습에는 적합하지만, 팀 프로젝트의 온프레미스 HA 구조 설명에는 부적합 |
+| Rancher/RKE | 관리 기능은 좋지만, 프로젝트 초반 학습 범위와 문서화 범위가 커질 수 있음 |
+
+## 5. 최종 결정
+
+이번 프로젝트의 온프레미스 Kubernetes 플랫폼은 `kubeadm` 기반으로 구축한다.
+
+이 결정에 따라 이후 작업은 다음 흐름으로 진행한다.
+
+1. Day 2: Control Plane / Worker Node 역할 및 노드 계획 확정
+2. Day 3: kubeadm 설치 스크립트 초안 작성
+3. Day 4: Ansible로 Kubernetes 사전 패키지 설치 자동화
+4. Day 5: kubeadm 기반 HA Kubernetes 클러스터 구성
+
+## 6. 완료 기준
+
+- Kubernetes 설치 방식이 `kubeadm`으로 명시되어 있다.
+- kubeadm 선택 이유가 정리되어 있다.
+- 다른 설치 대안과의 차이가 정리되어 있다.
+- AWS EKS와 비교했을 때 설명 가능한 포인트가 정리되어 있다.
