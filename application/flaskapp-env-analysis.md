@@ -16,15 +16,18 @@ FlaskApp 소스코드를 분석하여 컨테이너 실행에 필요한 환경변
 | 변수명 | 필수 여부 | 설명 | 예시값 |
 |---|---|---|---|
 | `PHOTOS_BUCKET` | 필수 | AWS S3 버킷 이름 (이미지 저장용) | my-flaskapp-bucket |
-| `DATABASE_HOST` | 필수 | MariaDB 서버 주소 | 172.16.0.160 |
+| `DATABASE_HOST` | 필수 | MariaDB 서버 주소 | 172.16.43.160 (VLAN 30 내부망) |
 | `DATABASE_USER` | 필수 | DB 접속 계정 | kosa |
 | `DATABASE_PASSWORD` | 필수 | DB 접속 비밀번호 | kosa1004 |
 | `DATABASE_DB_NAME` | 필수 | 사용할 DB 이름 | employees |
 | `AWS_DEFAULT_REGION` | 필수 | AWS 리전 | ap-northeast-2 |
-| `DYNAMO_MODE` | 선택 | 설정 시 MariaDB 대신 DynamoDB 사용 | 1 |
+| `DYNAMO_MODE` | 선택 | 설정 시 MariaDB 대신 DynamoDB 사용 (우리 프로젝트는 미사용) | 1 |
+| `AWS_ACCESS_KEY_ID` | 선택 | IAM Role 없을 때 S3 접근용 AWS 자격증명 | - |
+| `AWS_SECRET_ACCESS_KEY` | 선택 | IAM Role 없을 때 S3 접근용 AWS 자격증명 | - |
+| `FLASK_SECRET` | 선택 | 현재 `config.py`에 하드코딩됨, 프로덕션에서는 환경변수로 교체 필요 | some-secret |
 
 > `DATABASE_*` 변수는 코드상 None 기본값이지만, 없으면 DB 연결 시 앱이 죽음.  
-> `FLASK_SECRET`은 현재 `config.py`에 하드코딩(`"something-random"`) — 프로덕션에서는 환경변수로 교체 필요.
+> `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`는 IAM Role 방식 사용 시 불필요.
 
 ## 외부 의존성
 
