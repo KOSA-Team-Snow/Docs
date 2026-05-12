@@ -74,7 +74,7 @@ CLAUDE.md
 
 ```bash
 # Flaskapp 레포 루트에서 실행
-cd ~/Documents/GitHub/KOSA/Flaskapp
+cd <Flaskapp 레포 경로>
 
 docker build -t flaskapp:latest .
 ```
