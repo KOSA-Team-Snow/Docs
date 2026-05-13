@@ -104,8 +104,8 @@ DR에는 여러 단계가 있습니다. 비유하자면:
 
 | 이름 | 종류 | 무엇을 하는가 |
 |---|---|---|
-| `flaskapp-tfstate-kosa-project-jh-a3asx` | S3 버킷 | Terraform 상태 파일 저장소 ("내가 뭘 만들었는지" 기록) |
-| `flaskapp-proddata-kosa-project-jh-lai9z` | S3 버킷 | 앱이 쓰는 사진/파일 저장소 |
+| `flaskapp-tfstate-kosa-project-team3-snow-a3asx` | S3 버킷 | Terraform 상태 파일 저장소 ("내가 뭘 만들었는지" 기록) |
+| `flaskapp-proddata-kosa-project-team3-snow-lai9z` | S3 버킷 | 앱이 쓰는 사진/파일 저장소 |
 | `terraform-state-lock` | DynamoDB | 두 사람이 동시에 Terraform 못 돌리게 잠금 |
 | `flaskapp` | ECR | Docker 이미지 저장소 |
 
@@ -114,15 +114,15 @@ DR에는 여러 단계가 있습니다. 비유하자면:
 새로 만드는 모든 리소스는 이 패턴을 따릅니다:
 
 ```
-<용도>-kosa-project-jh-<랜덤 6자리>
+<용도>-kosa-project-team3-snow-<랜덤 6자리>
 ```
 
 예시:
-- VPC → `vpc-kosa-project-jh`
-- EKS → `eks-flaskapp-kosa-project-jh`
-- RDS → `rds-flaskapp-kosa-project-jh`
+- VPC → `vpc-kosa-project-team3-snow`
+- EKS → `eks-flaskapp-kosa-project-team3-snow`
+- RDS → `rds-flaskapp-kosa-project-team3-snow`
 
-> 💡 `kosa-project-jh`는 프로젝트 식별자, 랜덤 6자리는 S3처럼 전 세계에서 유일해야 하는 리소스용입니다.
+> 💡 `kosa-project-team3-snow`는 프로젝트 식별자, 랜덤 6자리는 S3처럼 전 세계에서 유일해야 하는 리소스용입니다.
 
 ### 2.2 기존 리소스를 어떻게 활용할 것인가
 
@@ -298,7 +298,7 @@ DMS가 온프렘 MariaDB를 읽으려면 **사설 회선**이 필요합니다 (�
 
 | 항목 | 설계값 |
 |---|---|
-| 클러스터명 | `eks-flaskapp-kosa-project-jh` |
+| 클러스터명 | `eks-flaskapp-kosa-project-team3-snow` |
 | EKS 버전 | 1.30 이상 |
 | API Endpoint 접근 | Private + Public(IP 화이트리스트) |
 | Control Plane 로그 | 5종(api, audit 등) 모두 켜기 → CloudWatch |
@@ -340,12 +340,12 @@ DMS가 온프렘 MariaDB를 읽으려면 **사설 회선**이 필요합니다 (�
     {
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/*"
+      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/*"
     },
     {
       "Effect": "Allow",
       "Action": ["s3:ListBucket"],
-      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z"
+      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z"
     }
   ]
 }
@@ -388,7 +388,7 @@ annotations:
 
 | 항목 | 설계값 |
 |---|---|
-| DB Identifier | `rds-flaskapp-kosa-project-jh` |
+| DB Identifier | `rds-flaskapp-kosa-project-team3-snow` |
 | 엔진 | **MariaDB** (또는 MySQL) — 온프렘과 동일 버전 |
 | 인스턴스 | `db.t3.medium` 또는 `db.m6i.large` |
 | 스토리지 | gp3 100GB부터, 자동 확장, **KMS 암호화 필수** |
@@ -409,7 +409,7 @@ annotations:
 
 | 항목 | 설정 |
 |---|---|
-| Replication Instance | `dms-flaskapp-kosa-project-jh` / `dms.t3.medium`, Multi-AZ 권장 |
+| Replication Instance | `dms-flaskapp-kosa-project-team3-snow` / `dms.t3.medium`, Multi-AZ 권장 |
 | Source | 온프렘 MariaDB (`172.16.43.160:3306`, VPN 너머) |
 | Target | AWS RDS MariaDB |
 | Migration Type | `full-load-and-cdc` (처음 한 번 전체 복사 + 이후 변경분만) |
@@ -421,7 +421,7 @@ annotations:
 
 ### 6.3 S3 (proddata) — 사진은 양쪽에서 같은 버킷
 
-이미 만들어진 `flaskapp-proddata-kosa-project-jh-lai9z` 버킷을 **온프렘 앱도, AWS EKS 앱도 똑같이 사용**합니다.
+이미 만들어진 `flaskapp-proddata-kosa-project-team3-snow-lai9z` 버킷을 **온프렘 앱도, AWS EKS 앱도 똑같이 사용**합니다.
 
 | 점검 항목 | 권장 설정 |
 |---|---|
@@ -482,10 +482,10 @@ annotations:
 ### 7.3 KMS (암호화 키)
 
 용도별로 키를 **분리**합니다 (한 키 털리면 다 털리니까):
-- `alias/flaskapp-rds-kosa-project-jh` → RDS
-- `alias/flaskapp-s3-kosa-project-jh` → S3
-- `alias/flaskapp-secrets-kosa-project-jh` → Secrets Manager
-- `alias/flaskapp-ebs-kosa-project-jh` → EBS
+- `alias/flaskapp-rds-kosa-project-team3-snow` → RDS
+- `alias/flaskapp-s3-kosa-project-team3-snow` → S3
+- `alias/flaskapp-secrets-kosa-project-team3-snow` → Secrets Manager
+- `alias/flaskapp-ebs-kosa-project-team3-snow` → EBS
 
 - 자동 키 회전: 연 1회 ON
 - 키 정책: Root는 관리만, 실제 암복호화는 해당 Role만
@@ -494,8 +494,8 @@ annotations:
 
 DB 비밀번호, API 키 등을 Secrets Manager에 두고, **External Secrets Operator**가 K8s Secret으로 자동 동기화.
 
-- `flaskapp-db-kosa-project-jh` → RDS 자격증명 (30~90일 자동 회전)
-- `flaskapp-api-keys-kosa-project-jh` → 외부 API 키
+- `flaskapp-db-kosa-project-team3-snow` → RDS 자격증명 (30~90일 자동 회전)
+- `flaskapp-api-keys-kosa-project-team3-snow` → 외부 API 키
 - **ConfigMap에 비번 절대 평문 X**
 - **온프렘과 AWS는 별도 값** — 한쪽 털려도 다른 쪽은 안전
 
@@ -580,7 +580,7 @@ terraform/
 # envs/dr/backend.tf
 terraform {
   backend "s3" {
-    bucket         = "flaskapp-tfstate-kosa-project-jh-a3asx"
+    bucket         = "flaskapp-tfstate-kosa-project-team3-snow-a3asx"
     key            = "envs/dr/terraform.tfstate"
     region         = "ap-northeast-2"
     dynamodb_table = "terraform-state-lock"
@@ -592,8 +592,8 @@ terraform {
 > 💡 **기존 4개 리소스 import**: 이미 콘솔에서 만들어진 거라 Terraform이 모릅니다. `terraform import`로 알려줘야 합니다.
 >
 > ```bash
-> terraform import module.s3.aws_s3_bucket.proddata flaskapp-proddata-kosa-project-jh-lai9z
-> terraform import module.s3.aws_s3_bucket.tfstate  flaskapp-tfstate-kosa-project-jh-a3asx
+> terraform import module.s3.aws_s3_bucket.proddata flaskapp-proddata-kosa-project-team3-snow-lai9z
+> terraform import module.s3.aws_s3_bucket.tfstate  flaskapp-tfstate-kosa-project-team3-snow-a3asx
 > terraform import module.ecr.aws_ecr_repository.flaskapp flaskapp
 > terraform import module.dynamodb.aws_dynamodb_table.lock terraform-state-lock
 > ```
