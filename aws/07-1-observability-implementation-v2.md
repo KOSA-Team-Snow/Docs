@@ -270,7 +270,7 @@ config:
     resource:
       attributes:
         - key: cluster
-          value: eks-flaskapp-kosa-project-jh
+          value: eks-flaskapp-kosa-project-team3-snow
           action: insert
         - key: environment
           value: dr
@@ -397,13 +397,13 @@ spec:
 
 ```hcl
 resource "aws_prometheus_workspace" "main" {
-  alias = "amp-flaskapp-kosa-project-jh"
+  alias = "amp-flaskapp-kosa-project-team3-snow"
 
   logging_configuration {
     log_group_arn = "${aws_cloudwatch_log_group.amp.arn}:*"
   }
 
-  tags = { Name = "amp-flaskapp-kosa-project-jh" }
+  tags = { Name = "amp-flaskapp-kosa-project-team3-snow" }
 }
 
 # remote_write endpoint를 변수로 ADOT에 주입
@@ -519,7 +519,7 @@ data:
         Name                  cloudwatch_logs
         Match                 application.*
         region                ap-northeast-2
-        log_group_name        /aws/eks/eks-flaskapp-kosa-project-jh/application
+        log_group_name        /aws/eks/eks-flaskapp-kosa-project-team3-snow/application
         log_stream_prefix     ${HOSTNAME}-
         auto_create_group     true
         retry_limit           5
@@ -825,7 +825,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
   alarm_description   = "RDS CPU 80% 5분 지속"
   treat_missing_data  = "breaching"
 
-  dimensions = { DBInstanceIdentifier = "rds-flaskapp-kosa-project-jh" }
+  dimensions = { DBInstanceIdentifier = "rds-flaskapp-kosa-project-team3-snow" }
 
   alarm_actions = [aws_sns_topic.p2_alarms.arn]
   ok_actions    = [aws_sns_topic.p2_alarms.arn]
@@ -845,7 +845,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
   threshold           = 20 * 1024 * 1024 * 1024   # 20 GB
   alarm_description   = "RDS 가용 스토리지 20GB 미만"
 
-  dimensions    = { DBInstanceIdentifier = "rds-flaskapp-kosa-project-jh" }
+  dimensions    = { DBInstanceIdentifier = "rds-flaskapp-kosa-project-team3-snow" }
   alarm_actions = [aws_sns_topic.p2_alarms.arn]
   tags          = { Priority = "P2" }
 }
@@ -862,7 +862,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
   threshold           = 180   # max_connections=200의 90%
   alarm_description   = "RDS 연결 수 임계치 도달"
 
-  dimensions    = { DBInstanceIdentifier = "rds-flaskapp-kosa-project-jh" }
+  dimensions    = { DBInstanceIdentifier = "rds-flaskapp-kosa-project-team3-snow" }
   alarm_actions = [aws_sns_topic.p3_alarms.arn]
   tags          = { Priority = "P3" }
 }
@@ -888,7 +888,7 @@ resource "aws_cloudwatch_metric_alarm" "dms_cdc_latency_target" {
   # 어느 하나라도 빠지면 CW가 metric을 못 찾고
   # INSUFFICIENT_DATA 상태로 머무름
   dimensions = {
-    ReplicationInstanceIdentifier = "dms-flaskapp-kosa-project-jh"
+    ReplicationInstanceIdentifier = "dms-flaskapp-kosa-project-team3-snow"
     ReplicationTaskIdentifier     = "dms-task-flaskapp"
   }
 
@@ -910,7 +910,7 @@ resource "aws_cloudwatch_metric_alarm" "dms_task_state" {
   treat_missing_data  = "breaching"
 
   dimensions = {
-    ReplicationInstanceIdentifier = "dms-flaskapp-kosa-project-jh"
+    ReplicationInstanceIdentifier = "dms-flaskapp-kosa-project-team3-snow"
     ReplicationTaskIdentifier     = "dms-task-flaskapp"
   }
 
@@ -932,7 +932,7 @@ resource "aws_cloudwatch_metric_alarm" "dms_cpu" {
   alarm_description   = "DMS CPU 80% — 인스턴스 업그레이드 검토"
 
   dimensions = {
-    ReplicationInstanceIdentifier = "dms-flaskapp-kosa-project-jh"
+    ReplicationInstanceIdentifier = "dms-flaskapp-kosa-project-team3-snow"
   }
 
   alarm_actions = [aws_sns_topic.p2_alarms.arn]
@@ -1044,7 +1044,7 @@ resource "aws_cloudwatch_metric_alarm" "node_not_ready" {
   threshold           = 0
   alarm_description   = "EKS 노드 NotReady 발생"
 
-  dimensions    = { ClusterName = "eks-flaskapp-kosa-project-jh" }
+  dimensions    = { ClusterName = "eks-flaskapp-kosa-project-team3-snow" }
   alarm_actions = [aws_sns_topic.p2_alarms.arn]
   tags          = { Priority = "P2" }
 }
@@ -1090,7 +1090,7 @@ CloudWatch Logs의 특정 패턴을 메트릭으로 변환:
 ```hcl
 resource "aws_cloudwatch_log_metric_filter" "app_errors" {
   name           = "flaskapp-error-count"
-  log_group_name = "/aws/eks/eks-flaskapp-kosa-project-jh/application"
+  log_group_name = "/aws/eks/eks-flaskapp-kosa-project-team3-snow/application"
   pattern        = "{ $.level = \"ERROR\" }"
 
   metric_transformation {
@@ -1248,7 +1248,7 @@ resource "aws_grafana_workspace" "main" {
     "XRAY"
   ]
 
-  name        = "amg-flaskapp-kosa-project-jh"
+  name        = "amg-flaskapp-kosa-project-team3-snow"
   description = "FlaskApp DR Observability Dashboard"
 
   role_arn = aws_iam_role.grafana_workspace.arn
@@ -1286,7 +1286,7 @@ resource "aws_grafana_role_association" "admin" {
         "metricName": "CDCLatencyTarget",
         "namespace": "AWS/DMS",
         "dimensions": {
-          "ReplicationInstanceIdentifier": "dms-flaskapp-kosa-project-jh",
+          "ReplicationInstanceIdentifier": "dms-flaskapp-kosa-project-team3-snow",
           "ReplicationTaskIdentifier": "dms-task-flaskapp"
         },
         "statistic": "Average"
@@ -1327,7 +1327,7 @@ resource "aws_grafana_role_association" "admin" {
       "type": "timeseries",
       "datasource": "Prometheus",
       "targets": [{
-        "expr": "aws_rds_replica_lag_average{dbinstance_identifier=\"rds-flaskapp-kosa-project-jh\"}"
+        "expr": "aws_rds_replica_lag_average{dbinstance_identifier=\"rds-flaskapp-kosa-project-team3-snow\"}"
       }]
     },
     {
@@ -1339,7 +1339,7 @@ resource "aws_grafana_role_association" "admin" {
           "metricName": "NumberOfObjects",
           "namespace": "AWS/S3",
           "dimensions": {
-            "BucketName": "flaskapp-proddata-kosa-project-jh-lai9z",
+            "BucketName": "flaskapp-proddata-kosa-project-team3-snow-lai9z",
             "StorageType": "AllStorageTypes"
           },
           "statistic": "Average"
