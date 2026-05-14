@@ -161,7 +161,7 @@ AWS Organization (또는 단일 계정)
 │   ├── IAM Identity Center (SSO)
 │   └── CloudTrail / Config
 │
-└── Workload Account (kosa-project-jh)
+└── Workload Account (kosa-project-team3-snow)
     ├── Permission Sets (IDC)         ← 사람용
     │   ├── EKSAdmin
     │   ├── DBAdmin
@@ -259,7 +259,7 @@ AWS Organization (또는 단일 계정)
 ```hcl
 # modules/iam/boundary.tf
 resource "aws_iam_policy" "permission_boundary" {
-  name        = "kosa-project-jh-boundary"
+  name        = "kosa-project-team3-snow-boundary"
   description = "최대 권한 한계 정의"
   policy      = file("${path.module}/policies/boundary.json")
 }
@@ -283,7 +283,7 @@ resource "aws_iam_role" "example" {
 | Identity Source | External IdP (Google Workspace/Okta) 또는 IDC 내장 | 가능하면 회사 IdP 연동 |
 | Session Duration | 4시간 | 짧을수록 안전, 길수록 편함 |
 | **MFA** | **필수** (모든 Permission Set) | TOTP 또는 WebAuthn |
-| Console Access | `https://kosa-project-jh.awsapps.com/start` | 사용자별 portal URL |
+| Console Access | `https://kosa-project-team3-snow.awsapps.com/start` | 사용자별 portal URL |
 | CLI Access | `aws sso login --profile xxx` | 임시 자격증명 |
 
 ### 3.2 Permission Set 카탈로그
@@ -374,7 +374,7 @@ resource "aws_cloudwatch_event_target" "breakglass_sns" {
 ```bash
 # 첫 로그인 (브라우저 인증)
 aws configure sso --profile flaskapp-dr-admin
-# SSO start URL: https://kosa-project-jh.awsapps.com/start
+# SSO start URL: https://kosa-project-team3-snow.awsapps.com/start
 # SSO Region: ap-northeast-2
 # Account ID: <ACCOUNT_ID>
 # Permission Set: EKSAdmin
@@ -384,7 +384,7 @@ aws configure sso --profile flaskapp-dr-admin
 aws sso login --profile flaskapp-dr-admin
 aws --profile flaskapp-dr-admin eks update-kubeconfig \
   --region ap-northeast-2 \
-  --name eks-flaskapp-kosa-project-jh
+  --name eks-flaskapp-kosa-project-team3-snow
 
 # 4시간 후 토큰 만료 → 재로그인
 ```
@@ -412,7 +412,7 @@ AWS 서비스들이 사용하는 Role 모음.
 
 ```hcl
 resource "aws_iam_role" "eks_node" {
-  name                 = "EKSNodeRole-kosa-project-jh"
+  name                 = "EKSNodeRole-kosa-project-team3-snow"
   permissions_boundary = aws_iam_policy.permission_boundary.arn
 
   assume_role_policy = jsonencode({
@@ -446,7 +446,7 @@ resource "aws_iam_role_policy_attachment" "node_ssm" {
 }
 
 resource "aws_iam_instance_profile" "eks_node" {
-  name = "EKSNodeProfile-kosa-project-jh"
+  name = "EKSNodeProfile-kosa-project-team3-snow"
   role = aws_iam_role.eks_node.name
 }
 ```
@@ -698,11 +698,11 @@ jobs:
 
 | Alias | 용도 | 회전 | 주 사용자 |
 |---|---|---|---|
-| `alias/flaskapp-rds-kosa-project-jh` | RDS 스토리지, Performance Insights | 자동 | RDS Service |
-| `alias/flaskapp-s3-kosa-project-jh` | S3 객체 (`proddata`, `tfstate`) | 자동 | S3 Service, IRSA |
-| `alias/flaskapp-secrets-kosa-project-jh` | Secrets Manager, EKS Secret | 자동 | Secrets Manager, EKS |
-| `alias/flaskapp-ebs-kosa-project-jh` | EBS 볼륨 (EKS Worker) | 자동 | EBS Service |
-| `alias/flaskapp-logs-kosa-project-jh` | CloudWatch Logs, CloudTrail | 자동 | Logs, CloudTrail |
+| `alias/flaskapp-rds-kosa-project-team3-snow` | RDS 스토리지, Performance Insights | 자동 | RDS Service |
+| `alias/flaskapp-s3-kosa-project-team3-snow` | S3 객체 (`proddata`, `tfstate`) | 자동 | S3 Service, IRSA |
+| `alias/flaskapp-secrets-kosa-project-team3-snow` | Secrets Manager, EKS Secret | 자동 | Secrets Manager, EKS |
+| `alias/flaskapp-ebs-kosa-project-team3-snow` | EBS 볼륨 (EKS Worker) | 자동 | EBS Service |
+| `alias/flaskapp-logs-kosa-project-team3-snow` | CloudWatch Logs, CloudTrail | 자동 | Logs, CloudTrail |
 
 ### 6.3 KMS Key 생성
 
@@ -714,11 +714,11 @@ resource "aws_kms_key" "rds" {
   multi_region            = false
   policy                  = data.aws_iam_policy_document.kms_rds.json
 
-  tags = { Name = "flaskapp-rds-kosa-project-jh" }
+  tags = { Name = "flaskapp-rds-kosa-project-team3-snow" }
 }
 
 resource "aws_kms_alias" "rds" {
-  name          = "alias/flaskapp-rds-kosa-project-jh"
+  name          = "alias/flaskapp-rds-kosa-project-team3-snow"
   target_key_id = aws_kms_key.rds.id
 }
 ```
@@ -839,9 +839,9 @@ resource "aws_cloudwatch_event_rule" "kms_deletion" {
 
 | Secret Name | 내용 | 회전 | 사용처 |
 |---|---|---|---|
-| `flaskapp-db-kosa-project-jh` | RDS Master 자격증명 | **자동 (30일)** | RDS, ESO → flaskapp |
+| `flaskapp-db-kosa-project-team3-snow` | RDS Master 자격증명 | **자동 (30일)** | RDS, ESO → flaskapp |
 | `dms-source-onprem-credentials` | 온프렘 MariaDB DMS 사용자 | 수동 (90일) | DMS Source |
-| `flaskapp-api-keys-kosa-project-jh` | 외부 API 키 | 수동 | ESO → flaskapp |
+| `flaskapp-api-keys-kosa-project-team3-snow` | 외부 API 키 | 수동 | ESO → flaskapp |
 | `flaskapp-jwt-signing-key` | JWT 서명 키 | 수동 (180일) | ESO → flaskapp |
 | `flaskapp-oauth-client-secrets` | OAuth Client Secret | 수동 | ESO → flaskapp |
 
@@ -1039,7 +1039,7 @@ resource "aws_guardduty_detector" "main" {
     }
   }
 
-  tags = { Name = "guardduty-kosa-project-jh" }
+  tags = { Name = "guardduty-kosa-project-team3-snow" }
 }
 
 # High Severity Finding 즉시 알람
@@ -1074,7 +1074,7 @@ GuardDuty가 "행동" 감시라면, Config는 "상태" 감시:
 
 ```hcl
 resource "aws_config_configuration_recorder" "main" {
-  name     = "config-recorder-kosa-project-jh"
+  name     = "config-recorder-kosa-project-team3-snow"
   role_arn = aws_iam_role.config.arn
 
   recording_group {
@@ -1147,7 +1147,7 @@ resource "aws_securityhub_standards_subscription" "aws_fsbp" {
 
 ```hcl
 resource "aws_accessanalyzer_analyzer" "main" {
-  analyzer_name = "access-analyzer-kosa-project-jh"
+  analyzer_name = "access-analyzer-kosa-project-team3-snow"
   type          = "ACCOUNT"
 }
 ```
@@ -1179,7 +1179,7 @@ ALB 앞단에 부착:
 
 ```hcl
 resource "aws_wafv2_web_acl" "main" {
-  name        = "waf-flaskapp-kosa-project-jh"
+  name        = "waf-flaskapp-kosa-project-team3-snow"
   description = "ALB WAF for FlaskApp"
   scope       = "REGIONAL"
 
@@ -1328,7 +1328,7 @@ CloudTrail은 두 종류로 나눠서 운영:
 ```hcl
 # 1. Management Events Trail (모든 API 호출)
 resource "aws_cloudtrail" "management" {
-  name                          = "trail-management-kosa-project-jh"
+  name                          = "trail-management-kosa-project-team3-snow"
   s3_bucket_name                = aws_s3_bucket.cloudtrail_logs.id
   s3_key_prefix                 = "management"
   include_global_service_events = true
@@ -1347,7 +1347,7 @@ resource "aws_cloudtrail" "management" {
 
 # 2. Data Events Trail (S3 객체, Lambda 호출 등)
 resource "aws_cloudtrail" "data" {
-  name           = "trail-data-kosa-project-jh"
+  name           = "trail-data-kosa-project-team3-snow"
   s3_bucket_name = aws_s3_bucket.cloudtrail_logs.id
   s3_key_prefix  = "data"
 
@@ -1386,7 +1386,7 @@ CloudTrail의 `enable_log_file_validation = true`로 로그 변조 검증 가능
 
 ```bash
 aws cloudtrail validate-logs \
-  --trail-arn arn:aws:cloudtrail:ap-northeast-2:<ACCOUNT_ID>:trail/trail-management-kosa-project-jh \
+  --trail-arn arn:aws:cloudtrail:ap-northeast-2:<ACCOUNT_ID>:trail/trail-management-kosa-project-team3-snow \
   --start-time 2026-05-01T00:00:00Z \
   --end-time 2026-05-11T00:00:00Z
 ```
