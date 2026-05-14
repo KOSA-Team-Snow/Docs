@@ -1,5 +1,7 @@
 # 03-1. 네트워크 상세 구현 설계
 
+> 수정 반영: 운용 리소스 구분, App RT 온프렘 라우트 제거, Route 53 Health Check 공인 endpoint 기준, Pilot Light 수동 활성화, NAT 1→2 확장 패턴.
+
 > 이전 문서 `aws-dr-architecture.md`의 **3장 네트워크**를 더 깊이 다룹니다.
 
 ## 📌 한 줄 요약
@@ -61,14 +63,14 @@ flowchart TB
         VGW[VPN Gateway<br/>BGP ASN 64512]
 
         subgraph AZa["AZ-a (서울 a)"]
-            PubA[Public Subnet<br/>10.20.0.0/24<br/>NAT-A · ALB]
-            AppA[Private App<br/>10.20.10.0/24<br/>EKS Node]
+            PubA[Public Subnet<br/>10.20.0.0/24<br/>NAT-A 상시 · ALB 장애 시]
+            AppA[Private App<br/>10.20.10.0/24<br/>EKS Node 장애 시]
             DataA[Private Data<br/>10.20.20.0/24<br/>RDS · DMS · VPCE]
         end
 
         subgraph AZc["AZ-c (서울 c)"]
-            PubC[Public Subnet<br/>10.20.1.0/24<br/>NAT-C · ALB]
-            AppC[Private App<br/>10.20.11.0/24<br/>EKS Node]
+            PubC[Public Subnet<br/>10.20.1.0/24<br/>NAT-C 장애 시 추가 · ALB 장애 시]
+            AppC[Private App<br/>10.20.11.0/24<br/>EKS Node 장애 시]
             DataC[Private Data<br/>10.20.21.0/24<br/>RDS Multi-AZ · VPCE]
         end
 
@@ -80,8 +82,9 @@ flowchart TB
 
     Internet --- IGW
     IGW --- PubA & PubC
-    PubA -- NAT-A --- AppA
-    PubC -- NAT-C --- AppC
+    PubA -- NAT-A 상시 --- AppA
+    PubA -. 평시 App-c도 NAT-A 사용 .-> AppC
+    PubC -. dr_active=true 시 NAT-C 추가 .-> AppC
     AppA -. SG .-> DataA
     AppC -. SG .-> DataC
     DataA --- VPCE_S3 & VPCE_IF
@@ -103,7 +106,7 @@ flowchart TB
 
 **2️⃣ AZ 2개에 똑같이 복제하기**
 
-한쪽 AZ(데이터센터)가 죽어도 다른 쪽으로 자동 전환되도록, 모든 계층을 두 AZ에 동일하게 배치. NAT Gateway도 AZ별로 따로.
+한쪽 AZ(데이터센터)가 죽어도 다른 쪽으로 전환할 수 있도록, 모든 계층의 서브넷은 두 AZ에 동일하게 배치합니다. 단, **NAT Gateway는 비용 절감을 위해 평시 1개만 상시 운용하고, `dr_active=true` 장애 활성화 시 2개로 확장**합니다.
 
 **3️⃣ 가능한 한 NAT 안 거치게 하기**
 
@@ -112,7 +115,37 @@ NAT는 비싸고 느립니다. AWS 서비스(S3, ECR 등)와 통신할 땐 **VPC
 **4️⃣ 들어오는 문은 최소화**
 
 - 평소엔 IGW로 들어오는 트래픽 **0** (ALB도 평시엔 없음)
-- VPN은 **AWS → 온프렘** 단방향만 (DMS가 binlog 읽으러)
+- VPN은 **AWS Data Subnet의 DMS → 온프렘 MariaDB** 경로만 허용
+- 장애 전환은 **Pilot Light DR** 방식으로, 운영자 승인 후 `dr_active=true`로 활성화
+
+### 1.3 운용 모드별 리소스 구분
+
+이 문서는 **Pilot Light DR** 기준입니다. 즉, 데이터 복제와 네트워크 기반은 평소에도 살아 있고, 실제 사용자 트래픽을 받을 EKS/ALB 계층은 장애 시 운영자 승인 후 켭니다.
+
+#### 상시 운용 (`dr_active=false` 기본)
+
+| 구분 | 리소스 | 설명 |
+|---|---|---|
+| 네트워크 기반 | VPC, Subnet, Route Table, Security Group | DR VPC의 뼈대. 항상 유지 |
+| 온프렘 연결 | Site-to-Site VPN, VGW/CGW | DMS가 온프렘 MariaDB binlog를 읽기 위한 사설 경로 |
+| 데이터 | RDS, DMS, S3 | On-prem → AWS 복제와 단일 Object Storage 유지 |
+| 이미지/권한 | ECR, IAM, KMS, Secrets Manager | 장애 시 앱이 바로 기동할 수 있도록 상시 준비 |
+| IaC 기반 | Terraform backend, DynamoDB lock | state/lock 저장소 |
+| DNS/감지 | Route 53, Health Check/Alarm | 온프렘 장애 감지와 전환 준비 |
+| 사설 AWS 접근 | VPC Endpoints | S3/ECR/STS/Logs/Secrets Manager 사설 접근 |
+| 인터넷 아웃바운드 | NAT Gateway **1개** | 평시 최소 비용. 기본은 AZ-a NAT-A 1개 |
+
+#### 장애 시 활성화 (`dr_active=true`)
+
+| 구분 | 리소스 | 설명 |
+|---|---|---|
+| 컨테이너 실행 | EKS Cluster, Managed Node Group | FlaskApp 실행 환경 생성 |
+| 외부 진입점 | ALB | Ingress가 생성하는 인터넷 공개 진입점 |
+| 앱 배포 | FlaskApp Deployment, Service, Ingress | ECR 이미지를 Pull해서 DR 앱 기동 |
+| 오토스케일링 | HPA | CPU/메모리 기준 Pod 확장 |
+| NAT 확장 | NAT Gateway **1개 추가** | AZ-c NAT-C를 추가하여 장애 시 NAT 총 2개 구성 |
+
+> 📌 **RTO 기대치**: 이 방식은 Warm Standby가 아니라 **Pilot Light DR**입니다. 따라서 장애 감지 후 바로 자동 전환되는 구조가 아니라, 운영자 승인 → `terraform apply -var="dr_active=true"` → EKS/ALB/앱 기동 → DNS 전환 순서로 진행됩니다. RTO는 수 초가 아니라 **수십 분 수준**으로 보는 것이 현실적입니다.
 
 ---
 
@@ -205,65 +238,146 @@ resource "aws_subnet" "app" {
 
 ### 3.1 Route Table = 길 안내 표
 
-Route Table은 "어디로 가려면 어느 문으로 나가야 하는가"를 적어둔 표입니다. 서브넷마다 하나씩 붙입니다.
+Route Table은 "어디로 가려면 어느 문으로 나가야 하는가"를 적어둔 표입니다. 이번 수정의 핵심은 **App Route Table에서 온프렘 라우트를 제거하고, 온프렘 DB 접근 경로를 Data Route Table로만 제한**하는 것입니다.
 
 | Route Table | 누가 쓰나 | 어디로 가려면? |
 |---|---|---|
-| **rt-public** | Public-a, Public-c | `0.0.0.0/0` (전 세계) → IGW<br/>`10.20.0.0/16` (VPC 내부) → local |
-| **rt-app-a** | App-a | `0.0.0.0/0` → **NAT-A**<br/>`172.16.0.0/16` (온프렘) → VGW (BGP)<br/>`10.20.0.0/16` → local |
-| **rt-app-c** | App-c | `0.0.0.0/0` → **NAT-C**<br/>`172.16.0.0/16` → VGW (BGP)<br/>`10.20.0.0/16` → local |
-| **rt-data-a** | Data-a | `172.16.43.160/32` (온프렘 DB만) → VGW<br/>`10.20.0.0/16` → local<br/>**`0.0.0.0/0` 없음 ← 인터넷 차단!** |
-| **rt-data-c** | Data-c | (Data-a와 동일) |
+| **rt-public** | Public-a, Public-c | `0.0.0.0/0` → IGW<br/>`10.20.0.0/16` → local |
+| **rt-app-a** | App-a | `0.0.0.0/0` → **NAT-A**<br/>`10.20.0.0/16` → local<br/>**온프렘 `172.16.0.0/16` 라우트 없음** |
+| **rt-app-c** | App-c | 평시 `0.0.0.0/0` → **NAT-A**<br/>DR 활성화 시 `0.0.0.0/0` → **NAT-C**<br/>`10.20.0.0/16` → local<br/>**온프렘 `172.16.0.0/16` 라우트 없음** |
+| **rt-data-a** | Data-a | `172.16.43.160/32` → VGW propagation 또는 정적 VGW route<br/>`10.20.0.0/16` → local<br/>**`0.0.0.0/0` 없음** |
+| **rt-data-c** | Data-c | Data-a와 동일 |
 
-> 💡 **정적 라우트 vs BGP 동적 라우팅**:
-> 정적 라우트는 "이 IP는 여기로" 손으로 박는 것, BGP는 양쪽 라우터가 자동으로 "내가 이 대역 가지고 있어"라고 알려주는 방식.
-> 이 설계는 VPN을 BGP로 운용하므로, VGW 라우트는 `aws_vpn_gateway_route_propagation`만 켜두면 pfSense가 알려주는 `172.16.43.160/32`가 자동으로 들어옵니다.
+> ✅ **수정 판단**: 구현 가능하며, 보안상 더 좋습니다. DMS만 온프렘 DB에 접근하면 되므로 App Subnet에 `172.16.0.0/16 → VGW`를 둘 이유가 없습니다. App Subnet까지 온프렘 전체 대역을 열면 EKS Pod/Node가 온프렘 내부망으로 나갈 수 있는 길이 생겨 공격면이 넓어집니다.
+
+> ⚠️ **BGP 주의**: `aws_vpn_gateway_route_propagation`은 pfSense가 BGP로 광고하는 prefix를 Route Table에 자동 반영합니다. 따라서 pfSense에서 `172.16.0.0/16` 전체를 광고하면 Data RT에도 전체 대역이 들어올 수 있습니다. 이 설계에서는 **pfSense가 `172.16.43.160/32`만 광고**하도록 제한합니다. 제어가 어렵다면 Data RT에는 propagation 대신 정적 route를 사용합니다.
 
 ### 3.2 4가지 핵심 의도
 
-**1️⃣ App 서브넷의 `0.0.0.0/0`은 NAT으로**
-→ EKS 노드가 외부 API 호출하거나 (VPCE 없는 트래픽) ECR pull 할 수 있게
+**1️⃣ App 서브넷은 인터넷 아웃바운드만 NAT으로**
+→ EKS 노드가 ECR Pull, 외부 API 호출 등 필요한 아웃바운드를 수행합니다. 단, 온프렘으로 가는 VGW 라우트는 없습니다.
 
-**2️⃣ Data 서브넷엔 `0.0.0.0/0` 라우트 자체가 없음**
-→ RDS/DMS는 외부 인터넷이 아예 안 보임. 보안 강화의 핵심.
+**2️⃣ Data 서브넷만 온프렘 DB로 연결**
+→ DMS Replication Instance가 온프렘 MariaDB `172.16.43.160:3306`에 접근하는 경로만 허용합니다.
 
-**3️⃣ AZ별로 NAT 따로**
-→ NAT-A가 죽어도 App-c는 NAT-C로 계속 인터넷 사용 가능
+**3️⃣ Data 서브넷엔 `0.0.0.0/0` 라우트 없음**
+→ RDS/DMS가 일반 인터넷으로 나가지 못하게 막습니다. AWS 서비스 접근은 VPC Endpoint를 사용합니다.
 
-**4️⃣ VGW 라우트는 `172.16.43.160/32` 하나만**
-→ 온프렘 전체 LAN을 여는 게 아니라, **DMS가 접근해야 하는 MariaDB IP 하나만** 열어둠. 보안 원칙 "최소 노출".
+**4️⃣ NAT는 평시 1개, 장애 시 2개**
+→ 비용 절감을 위해 NAT-A 1개만 상시 유지합니다. `dr_active=true`일 때 NAT-C를 추가해 AZ별 NAT 구조로 확장합니다.
 
-### 3.3 NAT Gateway 만들기
+### 3.3 NAT Gateway 수정 코드
+
+기존 코드는 NAT Gateway를 항상 2개 만들었습니다. 수정 후에는 `dr_active=false`일 때 1개, `dr_active=true`일 때 2개가 됩니다.
 
 ```hcl
+# modules/network/variables.tf
+variable "dr_active" {
+  type        = bool
+  default     = false
+  description = "true면 DR 활성화 모드. NAT Gateway를 2개로 확장"
+}
+```
+
+```hcl
+# modules/network/nat.tf
+locals {
+  # 평시: NAT-A 1개만 상시 운용
+  # 장애 시: NAT-A + NAT-C 2개 운용
+  nat_gateway_count = var.dr_active ? 2 : 1
+}
+
 resource "aws_eip" "nat" {
-  count  = 2
+  count  = local.nat_gateway_count
   domain = "vpc"
-  tags = { Name = "eip-nat-${local.azs[count.index]}" }
+
+  tags = {
+    Name = "eip-nat-${local.azs[count.index]}"
+  }
 }
 
 resource "aws_nat_gateway" "this" {
-  count         = 2
+  count         = local.nat_gateway_count
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
 
-  tags = { Name = "nat-${local.azs[count.index]}" }
+  tags = {
+    Name = "nat-${local.azs[count.index]}"
+    Mode = var.dr_active ? "dr-active" : "steady"
+  }
 
   depends_on = [aws_internet_gateway.this]
 }
 ```
 
-### 3.4 NAT 개수 선택지 (비용 vs 안정성)
+### 3.4 Route Table 수정 코드
 
-| 옵션 | 월 비용 | 장단점 |
-|---|---|---|
-| **NAT × 2** (권장) | ~$70 + 데이터 | AZ 장애 격리. 가장 안전 |
-| **NAT × 1** | ~$35 + 데이터 | 절반 비용, but 단일 NAT 죽으면 두 AZ 모두 인터넷 끊김 |
-| **NAT × 0 + VPCE 전부** | $0 (NAT) | ECR/외부 API 등 VPCE 없는 트래픽은 불가능 |
+App Route Table에는 `172.16.0.0/16 → VGW`를 만들지 않습니다. Data Route Table에만 온프렘 DB 경로를 둡니다.
 
-> 💡 **현실적인 선택**:
-> 평소엔 EKS 노드가 0대니까 NAT 사용량 거의 없습니다. **`dr_active=true`** 일 때만 NAT 트래픽 발생.
-> **비용 절감 위해 처음엔 NAT × 1로 시작해도 무방.**
+```hcl
+# modules/network/route_table.tf
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+
+  tags = { Name = "rt-public" }
+}
+
+resource "aws_route_table" "app" {
+  count  = 2
+  vpc_id = aws_vpc.main.id
+
+  tags = { Name = "rt-app-${local.azs[count.index]}" }
+}
+
+resource "aws_route" "app_default" {
+  count                  = 2
+  route_table_id         = aws_route_table.app[count.index].id
+  destination_cidr_block = "0.0.0.0/0"
+
+  # 평시에는 App-a/App-c가 모두 NAT-A 사용
+  # DR 활성화 시에는 App-a → NAT-A, App-c → NAT-C
+  nat_gateway_id = var.dr_active ? aws_nat_gateway.this[count.index].id : aws_nat_gateway.this[0].id
+}
+
+resource "aws_route_table" "data" {
+  count  = 2
+  vpc_id = aws_vpc.main.id
+
+  tags = { Name = "rt-data-${local.azs[count.index]}" }
+}
+
+# 선택지 A: BGP propagation 사용 — pfSense가 172.16.43.160/32만 광고해야 함
+resource "aws_vpn_gateway_route_propagation" "data" {
+  count          = 2
+  vpn_gateway_id = aws_vpn_gateway.this.id
+  route_table_id = aws_route_table.data[count.index].id
+}
+
+# 선택지 B: 더 강하게 제한하고 싶으면 propagation 대신 정적 route 사용
+# resource "aws_route" "data_onprem_db" {
+#   count                  = 2
+#   route_table_id         = aws_route_table.data[count.index].id
+#   destination_cidr_block = "172.16.43.160/32"
+#   gateway_id             = aws_vpn_gateway.this.id
+# }
+```
+
+> 💡 **초보자 관점에서 추천**: 처음 구축은 **선택지 B(정적 route)** 가 더 이해하기 쉽고 안전합니다. BGP propagation은 편하지만, 온프렘에서 어떤 prefix를 광고하는지 잘못 설정하면 의도보다 넓은 대역이 열릴 수 있습니다.
+
+### 3.5 NAT 개수 선택지 (비용 vs 안정성)
+
+| 모드 | NAT 개수 | 라우팅 | 장점 | 단점 |
+|---|---:|---|---|---|
+| 평시 `dr_active=false` | 1개 | App-a/App-c → NAT-A | 비용 절감 | NAT-A/AZ-a 장애 시 App Subnet 인터넷 아웃바운드 영향 |
+| 장애 `dr_active=true` | 2개 | App-a → NAT-A, App-c → NAT-C | AZ별 장애 격리 | 비용 증가 |
+| NAT 0 + VPCE | 0개 | AWS 서비스는 VPCE만 | NAT 비용 없음 | 외부 API/ECR 일부 경로 문제 가능 |
+
+> 📌 **이번 설계 결정**: NAT Gateway는 **1개 상시 운용**, DR 활성화 시 **1개 추가하여 총 2개**로 확장합니다. 이 변경은 Terraform 변수 `dr_active` 하나로 제어합니다.
 
 ---
 
@@ -362,6 +476,7 @@ resource "aws_vpn_connection" "main" {
 }
 
 # Data 서브넷의 Route Table에만 VGW propagation 허용
+# App Route Table에는 절대 propagation을 연결하지 않음
 resource "aws_vpn_gateway_route_propagation" "data" {
   count          = 2
   vpn_gateway_id = aws_vpn_gateway.this.id
@@ -667,54 +782,72 @@ resource "aws_security_group_rule" "rds_from_node" {
 
 ---
 
-## 7. Route 53 Failover — 장애 시 길 자동 전환
+## 7. Route 53 Failover — 장애 감지와 DNS 전환
 
-### 7.1 동작 원리
+### 7.1 중요한 수정 사항
+
+기존 문서의 `172.16.41.110:443/healthz` 직접 Health Check는 수정해야 합니다. `172.16.41.110`은 온프렘 내부 사설 IP이므로, Route 53의 public health checker가 인터넷에서 직접 접근할 수 없습니다.
+
+따라서 Health Check 대상은 아래 둘 중 하나로 바꿉니다.
+
+| 방식 | 사용 조건 | 권장도 |
+|---|---|---|
+| **공인 hostname/IP 직접 체크** | 온프렘 서비스가 공인 도메인 또는 공인 IP로 노출되어 있음 | ✅ 1차 권장 |
+| **CloudWatch Alarm 기반 Health Check** | 온프렘이 사설 IP만 있고 외부에서 직접 체크 불가 | ✅ 대안 |
+
+> ✅ **이번 문서의 기본안**: `var.onprem_public_hostname` 예: `primary.flaskapp.example.com` 또는 공인 LB 주소를 Health Check 대상으로 사용합니다. 사설 VIP `172.16.41.110`은 내부 구성 설명에는 남길 수 있지만, Route 53 public Health Check 대상으로 쓰면 안 됩니다.
+
+### 7.2 Pilot Light DR에서의 동작 원리
 
 ```mermaid
 flowchart TB
     USER([사용자])
     R53[Route 53<br/>flaskapp.example.com]
 
-    HC1[Health Check<br/>온프렘 VIP<br/>172.16.41.110:443/healthz]
+    HC1[Health Check<br/>온프렘 공인 hostname/IP<br/>primary.flaskapp.example.com:443/healthz]
+    ALARM[CloudWatch Alarm / SNS<br/>운영자 승인]
+    TF[Terraform apply<br/>dr_active=true]
     HC2[Health Check<br/>AWS ALB<br/>alb-xxx.elb.amazonaws.com/healthz]
 
-    REC_P[A Record - PRIMARY<br/>온프렘 Public IP<br/>Failover: PRIMARY]
-    REC_S[A Record - SECONDARY<br/>ALB Alias<br/>Failover: SECONDARY]
+    REC_P[A Record - PRIMARY<br/>온프렘 Public IP or hostname<br/>Failover: PRIMARY]
+    REC_S[A Record - SECONDARY<br/>ALB Alias<br/>Failover: SECONDARY<br/>dr_active=true 시 생성]
 
-    ONP[On-prem VIP]
+    ONP[On-prem Public Endpoint<br/>내부적으로 VIP 172.16.41.110 연결]
     ALB[AWS ALB]
 
     USER --> R53
     R53 --> REC_P
-    R53 --> REC_S
+    R53 -. dr_active=true 이후 .-> REC_S
     REC_P -. linked .- HC1
     REC_S -. linked .- HC2
     REC_P --> ONP
     REC_S --> ALB
 
-    HC1 -.정상.- R53
-    HC1 -.실패시.-> REC_S
+    HC1 -. 실패 .-> ALARM
+    ALARM -. 운영자 승인 .-> TF
+    TF -. EKS/ALB/Secondary Record 생성 .-> REC_S
 ```
 
 원리를 한 문장으로:
-> **Route 53이 PRIMARY(온프렘) 헬스체크를 계속 돌리다가, 3번 연속 실패하면 자동으로 SECONDARY(AWS ALB)로 DNS 응답을 바꿉니다.**
+> **Route 53 Health Check는 장애를 감지하고 알람을 보냅니다. 실제 DR 활성화는 운영자 승인 후 `dr_active=true`로 EKS, Node Group, ALB, Ingress, HPA를 생성하는 Pilot Light 방식입니다.**
 
-### 7.2 설계값과 이유
+### 7.3 설계값과 이유
 
 | 항목 | 값 | 이유 |
 |---|---|---|
-| **Record Type** | A (ALB는 Alias) | ALB는 IP가 바뀔 수 있으니 Alias로 |
-| **TTL** | **60초** | 짧을수록 전환 빠름. 권장 30~60초 |
-| **Health Check 간격** | 30초 | 기본값. 10초로 줄이면 비용 3배 |
-| **실패 임계치** | 3회 연속 | 90초 내 감지 + false positive 방지 |
-| **경로** | `/healthz` (HTTPS) | App 헬스 + DB 연결 확인 |
-| **Routing Policy** | Failover (Active-Passive) | Primary 죽으면 Secondary |
-| **Evaluate Target Health** | true | ALB 자체 헬스도 같이 체크 (이중 안전) |
+| **Record Type** | A 또는 CNAME, ALB는 Alias A | ALB는 IP가 바뀔 수 있으니 Alias 권장 |
+| **TTL** | **60초** | 권장 30~60초. 너무 길면 전환 지연 |
+| **Health Check 대상** | `var.onprem_public_hostname` 또는 `var.onprem_public_ip` | Route 53 public checker가 접근 가능한 주소여야 함 |
+| **Health Check 간격** | 30초 | 기본값. 10초는 비용 증가 |
+| **실패 임계치** | 3회 연속 | 약 90초 내 감지 + false positive 방지 |
+| **경로** | `/healthz` HTTPS | App 헬스 + DB/S3 최소 확인 |
+| **Routing Policy** | Failover Active-Passive | Primary 장애 시 Secondary |
+| **전환 방식** | 운영자 승인 후 `dr_active=true` | Pilot Light DR 정합성 유지 |
+| **RTO** | 수십 분 가능 | EKS/노드/ALB/Pod 생성 시간이 포함됨 |
 
-### 7.3 헬스체크 엔드포인트 만들기
+### 7.4 헬스체크 엔드포인트 만들기
 
-Flask 앱의 `/healthz`는 이런 식으로 구현:
+Flask 앱의 `/healthz`는 이런 식으로 구현합니다.
 
 ```python
 @app.route("/healthz")
@@ -729,17 +862,36 @@ def healthz():
         return {"status": "fail", "error": str(e)}, 503
 ```
 
-> ⚠️ **헬스체크는 가볍게**: DB ping 한 번이면 충분. 복잡한 쿼리 넣으면 false negative로 의도치 않은 Failover 발생.
+> ⚠️ **헬스체크는 가볍게**: DB ping 한 번이면 충분합니다. 복잡한 쿼리를 넣으면 false negative로 의도치 않은 장애 알람이 발생할 수 있습니다.
 
-### 7.4 Terraform 코드
+### 7.5 Terraform 코드 — 공인 endpoint 직접 체크
+
+```hcl
+# modules/route53/variables.tf
+variable "onprem_public_hostname" {
+  type        = string
+  description = "Route 53 Health Check가 접근 가능한 온프렘 공인 hostname. 예: primary.flaskapp.example.com"
+}
+
+variable "onprem_public_ip" {
+  type        = string
+  description = "Primary 레코드에 넣을 온프렘 공인 IP. 고정 공인 IP 사용 권장"
+}
+
+variable "dr_active" {
+  type        = bool
+  default     = false
+  description = "true면 AWS ALB Secondary 레코드를 생성"
+}
+```
 
 ```hcl
 # modules/route53/failover.tf
 data "aws_route53_zone" "main" {
-  name = var.domain_name   # 예: example.com
+  name = var.domain_name
 }
 
-# Primary: 온프렘 VIP
+# Primary: 온프렘 공인 endpoint
 resource "aws_route53_health_check" "onprem" {
   fqdn              = var.onprem_public_hostname
   port              = 443
@@ -748,7 +900,9 @@ resource "aws_route53_health_check" "onprem" {
   failure_threshold = 3
   request_interval  = 30
 
-  tags = { Name = "hc-onprem-kosa-project-team3-snow" }
+  tags = {
+    Name = "hc-onprem-kosa-project-team3-snow"
+  }
 }
 
 resource "aws_route53_record" "primary" {
@@ -766,7 +920,7 @@ resource "aws_route53_record" "primary" {
   }
 }
 
-# Secondary: AWS ALB (dr_active=true일 때만 생성)
+# Secondary: AWS ALB — dr_active=true일 때만 생성
 resource "aws_route53_record" "secondary" {
   count   = var.dr_active ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
@@ -780,23 +934,62 @@ resource "aws_route53_record" "secondary" {
   }
 
   set_identifier = "secondary-aws"
+
   failover_routing_policy {
     type = "SECONDARY"
   }
 }
 ```
 
-### 7.5 시나리오별 동작
+### 7.6 Terraform 코드 — 사설 IP만 있는 경우의 대안
+
+온프렘 서비스가 공인 endpoint를 제공할 수 없다면, Route 53이 `172.16.41.110`을 직접 체크하는 대신 **CloudWatch Metric 기반 Health Check**를 사용합니다.
+
+흐름은 아래와 같습니다.
+
+1. 온프렘 또는 AWS 내부 모니터링 프로브가 VPN/내부망으로 `https://172.16.41.110/healthz` 체크
+2. 체크 결과를 CloudWatch Custom Metric으로 push
+3. CloudWatch Alarm 생성
+4. Route 53 Health Check가 CloudWatch Alarm 데이터 스트림을 참조
+
+```hcl
+resource "aws_cloudwatch_metric_alarm" "onprem_private_health" {
+  alarm_name          = "onprem-private-health-failed"
+  namespace           = "FlaskApp/OnPrem"
+  metric_name         = "HealthStatus"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 3
+  period              = 60
+  statistic           = "Minimum"
+  threshold           = 1
+  treat_missing_data  = "breaching"
+}
+
+resource "aws_route53_health_check" "onprem_alarm" {
+  type                            = "CLOUDWATCH_METRIC"
+  cloudwatch_alarm_name           = aws_cloudwatch_metric_alarm.onprem_private_health.alarm_name
+  cloudwatch_alarm_region         = "ap-northeast-2"
+  insufficient_data_health_status = "Unhealthy"
+
+  tags = {
+    Name = "hc-onprem-private-via-cloudwatch"
+  }
+}
+```
+
+> 💡 초보자에게는 **공인 hostname/IP 방식**이 더 단순합니다. 단, 온프렘 방화벽에서 Route 53 Health Checker IP 대역을 허용해야 합니다. 사설 IP만 유지해야 하는 보안 요구가 강하면 CloudWatch Metric 방식으로 갑니다.
+
+### 7.7 시나리오별 동작
 
 | 상황 | 결과 |
 |---|---|
-| Primary 정상 + Secondary 있음 | → Primary로 라우팅 (정상) |
-| Primary 3회 실패 + Secondary 있음 | → Secondary로 자동 전환 (TTL 60초 내) |
-| Primary 정상 + Secondary 없음 (`dr_active=false`) | → Primary만 응답 (평소 상태) |
-| **Primary 실패 + Secondary 없음** | → **Failover 대상 없어서 응답 불가** ⚠️ **위험!** |
+| Primary 정상 + `dr_active=false` | 온프렘 Primary로 라우팅 |
+| Primary 실패 + `dr_active=false` | Health Check 실패 알람 발생. AWS에는 아직 ALB가 없으므로 운영자 승인 필요 |
+| 운영자 승인 후 `dr_active=true` | EKS, Node Group, ALB, Ingress, HPA, Secondary Record 생성 |
+| Primary 실패 + Secondary 생성 완료 | DNS가 AWS ALB로 전환 |
+| 온프렘 복구 | Failback 절차 후 `dr_active=false`로 비용 축소 |
 
-> 📌 **운영 주의**: `dr_active=false`로 Secondary 레코드 자체가 없는 상태에선 Failover 동작 안 합니다.
-> **검토 필요**: 평시에도 Secondary 레코드 골격은 유지(트래픽 0)하고, EKS만 생성/제거하는 방식으로 바꿀지 결정.
+> 📌 **운영 주의**: 이 설계는 완전 자동 Hot Standby가 아닙니다. Route 53 Health Check 실패가 곧바로 서비스 전환 완료를 의미하지 않습니다. **장애 감지 → 운영자 승인 → DR 활성화 → DNS 전환** 순서입니다.
 
 ---
 
@@ -812,8 +1005,8 @@ terraform/modules/network/
 ├── outputs.tf           # vpc_id, subnet_ids, route_table_ids 등
 ├── vpc.tf               # VPC + IGW
 ├── subnet.tf            # 6개 서브넷
-├── nat.tf               # EIP × 2, NAT × 2
-├── route_table.tf       # 5개 RT + association
+├── nat.tf               # 평시 NAT × 1, dr_active=true 시 NAT × 2
+├── route_table.tf       # App RT는 NAT만, Data RT만 온프렘 DB/VGW 경로
 ├── vpn.tf               # VGW, CGW, VPN Connection
 ├── vpc_endpoints.tf     # Gateway × 2, Interface × 5
 └── locals.tf            # AZ, CIDR 매핑
@@ -844,10 +1037,10 @@ variable "onprem_db_ip" {
   description = "DMS Source MariaDB의 사설 IP (VPN 너머)"
 }
 
-variable "enable_nat" {
-  type    = number
-  default = 2
-  description = "NAT Gateway 개수 (0, 1, 2). 비용 최적화용"
+variable "dr_active" {
+  type        = bool
+  default     = false
+  description = "true면 EKS/ALB/NAT-C를 활성화하는 DR 모드"
 }
 
 # modules/network/outputs.tf — 내보내는 값
@@ -868,7 +1061,7 @@ module "network" {
   vpc_cidr          = "10.20.0.0/16"
   azs               = ["ap-northeast-2a", "ap-northeast-2c"]
   pfsense_public_ip = var.pfsense_public_ip
-  enable_nat        = 2
+  dr_active         = var.dr_active
 }
 
 module "security" {
@@ -894,8 +1087,10 @@ module "security" {
 
 - [ ] Public 서브넷 RT에 `0.0.0.0/0 → IGW` 존재
 - [ ] App 서브넷 RT에 `0.0.0.0/0 → NAT` 존재
+- [ ] App 서브넷 RT에 `172.16.0.0/16 → VGW`가 **없는지** 확인
 - [ ] **Data 서브넷 RT에 `0.0.0.0/0` 없음** (인터넷 차단 확인) ⭐
-- [ ] Data 서브넷 RT에 `172.16.43.160/32 → VGW` 존재
+- [ ] Data 서브넷 RT에만 `172.16.43.160/32 → VGW` 또는 VGW propagation 존재
+- [ ] `dr_active=false`에서 NAT Gateway 1개, `dr_active=true`에서 NAT Gateway 2개 확인
 
 ### Phase 3: VPN 검증
 
@@ -920,11 +1115,13 @@ module "security" {
 
 ### Phase 6: Route 53 Failover 검증
 
-- [ ] Health Check가 `/healthz` 정상 응답 시 `Healthy`
-- [ ] 의도적으로 온프렘 VIP 차단 → 90초 내 `Unhealthy` 전환
-- [ ] (DR 훈련 시) Secondary 레코드 활성화 후 DNS resolution이 ALB로 전환
+- [ ] Health Check 대상이 사설 IP(`172.16.x.x`)가 아니라 공인 hostname/IP인지 확인
+- [ ] 온프렘 공인 `/healthz`가 Route 53 Health Checker에서 200 OK 받는지 확인
+- [ ] 의도적으로 온프렘 endpoint 차단 → 90초 내 `Unhealthy` 및 SNS/CloudWatch 알람 발생
+- [ ] 운영자 승인 후 `terraform apply -var="dr_active=true"` 실행 시 EKS/ALB/Secondary 레코드 생성
+- [ ] Secondary 레코드 활성화 후 DNS resolution이 ALB로 전환
 - [ ] TTL 60초가 클라이언트에서도 준수되는지 `dig +noall +answer`로 확인
 
 ---
 
-📎 상위: [03. 네트워크](./03-network.md) | 인덱스: [README](../../README.md)
+📎 상위: [AWS Architecture](./aws-dr-architecture-v2.md#4-네트워크--aws-안에-어떻게-길을-내는가)
