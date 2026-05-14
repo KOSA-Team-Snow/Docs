@@ -152,7 +152,7 @@ flowchart TB
 
 | 항목 | 값 | 이유 |
 |---|---|---|
-| 클러스터명 | `eks-flaskapp-kosa-project-jh` | 명명 규칙 준수 |
+| 클러스터명 | `eks-flaskapp-kosa-project-team3-snow` | 명명 규칙 준수 |
 | EKS 버전 | **1.30** | 2026년 5월 기준 안정. 매년 1회 마이너 업그레이드 |
 | Region | `ap-northeast-2` | 서울 |
 | Subnet | App × 2 + Public × 2 | Control Plane ENI는 양쪽 다 사용 |
@@ -186,7 +186,7 @@ flowchart TB
 # modules/eks/cluster.tf
 resource "aws_eks_cluster" "this" {
   count    = var.dr_active ? 1 : 0
-  name     = "eks-flaskapp-kosa-project-jh"
+  name     = "eks-flaskapp-kosa-project-team3-snow"
   version  = "1.30"
   role_arn = aws_iam_role.cluster.arn
 
@@ -210,7 +210,7 @@ resource "aws_eks_cluster" "this" {
     "controllerManager", "scheduler",
   ]
 
-  tags = { Name = "eks-flaskapp-kosa-project-jh" }
+  tags = { Name = "eks-flaskapp-kosa-project-team3-snow" }
 
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy,
@@ -220,7 +220,7 @@ resource "aws_eks_cluster" "this" {
 
 resource "aws_cloudwatch_log_group" "cluster" {
   count             = var.dr_active ? 1 : 0
-  name              = "/aws/eks/eks-flaskapp-kosa-project-jh/cluster"
+  name              = "/aws/eks/eks-flaskapp-kosa-project-team3-snow/cluster"
   retention_in_days = 30
   kms_key_id        = var.kms_logs_arn
 }
@@ -302,7 +302,7 @@ resource "aws_launch_template" "node" {
     resource_type = "instance"
     tags = {
       Name                                                 = "eks-node-flaskapp"
-      "kubernetes.io/cluster/eks-flaskapp-kosa-project-jh" = "owned"
+      "kubernetes.io/cluster/eks-flaskapp-kosa-project-team3-snow" = "owned"
     }
   }
 }
@@ -521,13 +521,13 @@ sequenceDiagram
         "s3:DeleteObject",
         "s3:GetObjectVersion"
       ],
-      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/*"
+      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/*"
     },
     {
       "Sid": "S3DataList",
       "Effect": "Allow",
       "Action": "s3:ListBucket",
-      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z",
+      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z",
       "Condition": {
         "StringLike": {
           "s3:prefix": ["uploads/*", "static/*"]
@@ -587,7 +587,7 @@ data "aws_iam_policy_document" "flaskapp_trust" {
 
 resource "aws_iam_role" "flaskapp_pod" {
   count              = var.dr_active ? 1 : 0
-  name               = "eks-irsa-flaskapp-kosa-project-jh"
+  name               = "eks-irsa-flaskapp-kosa-project-team3-snow"
   assume_role_policy = data.aws_iam_policy_document.flaskapp_trust.json
 }
 
@@ -608,7 +608,7 @@ metadata:
   name: flaskapp-sa
   namespace: flaskapp
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/eks-irsa-flaskapp-kosa-project-jh
+    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/eks-irsa-flaskapp-kosa-project-team3-snow
 ```
 
 Pod에서 `serviceAccountName: flaskapp-sa`로 지정하면 끝.
@@ -631,7 +631,7 @@ Helm으로 설치:
 helm repo add eks https://aws.github.io/eks-charts
 helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
   -n kube-system \
-  --set clusterName=eks-flaskapp-kosa-project-jh \
+  --set clusterName=eks-flaskapp-kosa-project-team3-snow \
   --set serviceAccount.create=false \
   --set serviceAccount.name=aws-load-balancer-controller \
   --set region=ap-northeast-2 \
@@ -668,7 +668,7 @@ metadata:
     # 로그 (S3로 저장)
     alb.ingress.kubernetes.io/load-balancer-attributes: |
       access_logs.s3.enabled=true,
-      access_logs.s3.bucket=flaskapp-proddata-kosa-project-jh-lai9z,
+      access_logs.s3.bucket=flaskapp-proddata-kosa-project-team3-snow-lai9z,
       access_logs.s3.prefix=alb-access-logs,
       idle_timeout.timeout_seconds=60
 
@@ -680,7 +680,7 @@ metadata:
     alb.ingress.kubernetes.io/wafv2-acl-arn: <WAFV2_ARN>
 
     # 태그
-    alb.ingress.kubernetes.io/tags: Environment=dr,Project=kosa-project-jh
+    alb.ingress.kubernetes.io/tags: Environment=dr,Project=kosa-project-team3-snow
 spec:
   rules:
     - host: flaskapp.example.com
@@ -762,7 +762,7 @@ resource "aws_acm_certificate_validation" "flaskapp" {
 
 ```mermaid
 flowchart LR
-    SM[AWS Secrets Manager<br/>flaskapp-db-kosa-project-jh]
+    SM[AWS Secrets Manager<br/>flaskapp-db-kosa-project-team3-snow]
     ESO[ExternalSecret CRD]
     OP[External Secrets Operator]
     K8S[Kubernetes Secret<br/>flaskapp-db-secret]
@@ -811,11 +811,11 @@ spec:
   data:
     - secretKey: DATABASE_URL
       remoteRef:
-        key: flaskapp-db-kosa-project-jh
+        key: flaskapp-db-kosa-project-team3-snow
         property: connection_string
     - secretKey: DATABASE_PASSWORD
       remoteRef:
-        key: flaskapp-db-kosa-project-jh
+        key: flaskapp-db-kosa-project-team3-snow
         property: password
 ```
 
@@ -879,7 +879,7 @@ spec:
             - containerPort: 8000
           env:
             - name: PHOTOS_BUCKET
-              value: flaskapp-proddata-kosa-project-jh-lai9z
+              value: flaskapp-proddata-kosa-project-team3-snow-lai9z
             - name: AWS_REGION
               value: ap-northeast-2
           envFrom:
@@ -1082,7 +1082,7 @@ flowchart LR
 aws sso login --profile flaskapp-dr-admin
 aws eks update-kubeconfig \
   --region ap-northeast-2 \
-  --name eks-flaskapp-kosa-project-jh \
+  --name eks-flaskapp-kosa-project-team3-snow \
   --profile flaskapp-dr-admin
 
 kubectl get nodes
@@ -1196,7 +1196,7 @@ variable "dr_active" {
 
 variable "cluster_name" {
   type    = string
-  default = "eks-flaskapp-kosa-project-jh"
+  default = "eks-flaskapp-kosa-project-team3-snow"
 }
 
 variable "cluster_version" {
@@ -1274,7 +1274,7 @@ module "k8s_bootstrap" {
 
 ### Phase 1: 클러스터 준비
 
-- [ ] `aws eks describe-cluster --name eks-flaskapp-kosa-project-jh` → status `ACTIVE`
+- [ ] `aws eks describe-cluster --name eks-flaskapp-kosa-project-team3-snow` → status `ACTIVE`
 - [ ] `kubectl get nodes` → 노드 3개가 `Ready`
 - [ ] 노드가 양쪽 AZ에 분산됐는지 (`kubectl get nodes -L topology.kubernetes.io/zone`)
 - [ ] Control Plane 로그가 CloudWatch에 흐름
