@@ -271,12 +271,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "flaskapp-tfstate-kosa-project-jh-a3asx"
+    bucket         = "flaskapp-tfstate-kosa-project-team3-snow-a3asx"
     key            = "envs/dr/terraform.tfstate"
     region         = "ap-northeast-2"
     dynamodb_table = "terraform-state-lock"
     encrypt        = true
-    kms_key_id     = "alias/flaskapp-secrets-kosa-project-jh"
+    kms_key_id     = "alias/flaskapp-secrets-kosa-project-team3-snow"
   }
 }
 ```
@@ -289,7 +289,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "kosa-project-jh"
+      Project     = "kosa-project-team3-snow"
       Environment = "dr"
       ManagedBy   = "terraform"
       Repo        = "flaskapp-infra"
@@ -331,7 +331,7 @@ provider "kubernetes" {
 ```hcl
 # bootstrap/main.tf — local backend로 시작
 resource "aws_s3_bucket" "tfstate" {
-  bucket = "flaskapp-tfstate-kosa-project-jh-a3asx"
+  bucket = "flaskapp-tfstate-kosa-project-team3-snow-a3asx"
   lifecycle { prevent_destroy = true }
 }
 
@@ -356,7 +356,7 @@ terraform init
 terraform apply
 
 # 2. 기존 리소스 import (Phase 0)
-terraform import aws_s3_bucket.tfstate flaskapp-tfstate-kosa-project-jh-a3asx
+terraform import aws_s3_bucket.tfstate flaskapp-tfstate-kosa-project-team3-snow-a3asx
 terraform import aws_dynamodb_table.lock terraform-state-lock
 
 # 3. envs/dr/에서 작업 시작
@@ -381,13 +381,13 @@ terraform import aws_dynamodb_table.lock terraform-state-lock
 # bootstrap stack
 cd terraform/bootstrap
 terraform init
-terraform import aws_s3_bucket.tfstate   flaskapp-tfstate-kosa-project-jh-a3asx
+terraform import aws_s3_bucket.tfstate   flaskapp-tfstate-kosa-project-team3-snow-a3asx
 terraform import aws_dynamodb_table.lock terraform-state-lock
 
 # envs/dr stack
 cd ../envs/dr
 terraform init
-terraform import 'module.s3.aws_s3_bucket.proddata'   flaskapp-proddata-kosa-project-jh-lai9z
+terraform import 'module.s3.aws_s3_bucket.proddata'   flaskapp-proddata-kosa-project-team3-snow-lai9z
 terraform import 'module.ecr.aws_ecr_repository.this' flaskapp
 ```
 
@@ -969,7 +969,7 @@ patches:
     - name: DATABASE_PORT
       value: "3306"
     - name: PHOTOS_BUCKET
-      value: flaskapp-proddata-kosa-project-jh-lai9z
+      value: flaskapp-proddata-kosa-project-team3-snow-lai9z
     - name: AWS_REGION
       value: ap-northeast-2
 - op: replace
