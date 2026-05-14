@@ -1,7 +1,7 @@
 # FlaskApp K8s ConfigMap / Secret DB 연동 가이드
 
 > 담당: 팀원 C (@ireneminhee)  
-> 관련 이슈: #15
+> 관련 이슈: #108
 
 ---
 
