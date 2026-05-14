@@ -148,7 +148,7 @@ flowchart TB
 
 | 항목 | 값 | 왜 이렇게? |
 |---|---|---|
-| DB Identifier | `rds-flaskapp-kosa-project-jh` | 명명 규칙 |
+| DB Identifier | `rds-flaskapp-kosa-project-team3-snow` | 명명 규칙 |
 | Engine | **MariaDB 10.11** (또는 MySQL 8.0) | ⭐ 온프렘 버전과 정확히 일치 필수 |
 | Instance Class | `db.t3.medium` (2 vCPU / 4 GiB) | 평시 부하 거의 없음 |
 | Storage Type | `gp3` | gp2보다 저렴, IOPS 분리 |
@@ -184,14 +184,14 @@ flowchart TB
 ```hcl
 # modules/rds/main.tf
 resource "aws_db_subnet_group" "main" {
-  name       = "rds-flaskapp-kosa-project-jh"
+  name       = "rds-flaskapp-kosa-project-team3-snow"
   subnet_ids = var.data_subnet_ids
 
   tags = { Name = "rds-flaskapp-subnet-group" }
 }
 
 resource "aws_db_instance" "flaskapp" {
-  identifier     = "rds-flaskapp-kosa-project-jh"
+  identifier     = "rds-flaskapp-kosa-project-team3-snow"
   engine         = "mariadb"
   engine_version = "10.11.6"   # 온프렘과 일치
   instance_class = "db.t3.medium"
@@ -235,7 +235,7 @@ resource "aws_db_instance" "flaskapp" {
 
   apply_immediately = false   # 운영 중에는 false, 명시적 변경만 즉시 적용
 
-  tags = { Name = "rds-flaskapp-kosa-project-jh" }
+  tags = { Name = "rds-flaskapp-kosa-project-team3-snow" }
 }
 ```
 
@@ -269,7 +269,7 @@ DMS가 CDC로 동작하려면 **소스 DB(온프렘 MariaDB)** 에 특정 설정
 
 ```hcl
 resource "aws_db_parameter_group" "flaskapp" {
-  name        = "pg-mariadb-flaskapp-kosa-project-jh"
+  name        = "pg-mariadb-flaskapp-kosa-project-team3-snow"
   family      = "mariadb10.11"
   description = "FlaskApp DR용 — DMS CDC 호환 + 성능 튜닝"
 
@@ -321,7 +321,7 @@ resource "aws_db_parameter_group" "flaskapp" {
     value = "utf8mb4_unicode_ci"
   }
 
-  tags = { Name = "pg-mariadb-flaskapp-kosa-project-jh" }
+  tags = { Name = "pg-mariadb-flaskapp-kosa-project-team3-snow" }
 }
 ```
 
@@ -442,7 +442,7 @@ Lambda는 boto3로 `create_db_snapshot` + 6개월 지난 스냅샷 자동 삭제
 
 | 항목 | 값 | 이유 |
 |---|---|---|
-| Identifier | `dms-flaskapp-kosa-project-jh` | |
+| Identifier | `dms-flaskapp-kosa-project-team3-snow` | |
 | Engine Version | 최신 안정 버전 (3.5.x) | |
 | Instance Class | `dms.t3.medium` (2 vCPU / 4 GiB) | 시작값. Lag 발생 시 업그레이드 |
 | Allocated Storage | 50 GiB | binlog 임시 저장 |
@@ -475,7 +475,7 @@ resource "aws_dms_replication_subnet_group" "main" {
 }
 
 resource "aws_dms_replication_instance" "main" {
-  replication_instance_id      = "dms-flaskapp-kosa-project-jh"
+  replication_instance_id      = "dms-flaskapp-kosa-project-team3-snow"
   replication_instance_class   = "dms.t3.medium"
   allocated_storage            = 50
   engine_version               = "3.5.2"
@@ -490,7 +490,7 @@ resource "aws_dms_replication_instance" "main" {
 
   preferred_maintenance_window = "sun:18:00-sun:19:00"
 
-  tags = { Name = "dms-flaskapp-kosa-project-jh" }
+  tags = { Name = "dms-flaskapp-kosa-project-team3-snow" }
 }
 ```
 
@@ -779,7 +779,7 @@ resource "aws_dms_replication_task" "main" {
 
 | 항목 | 값 |
 |---|---|
-| 버킷명 | `flaskapp-proddata-kosa-project-jh-lai9z` |
+| 버킷명 | `flaskapp-proddata-kosa-project-team3-snow-lai9z` |
 | 리전 | `ap-northeast-2` |
 | Object Ownership | `BucketOwnerEnforced` (ACL 비활성) |
 | Block Public Access | **4개 모두 활성** |
@@ -794,7 +794,7 @@ resource "aws_dms_replication_task" "main" {
 버킷 안을 정리해서 쓰기:
 
 ```
-flaskapp-proddata-kosa-project-jh-lai9z/
+flaskapp-proddata-kosa-project-team3-snow-lai9z/
 ├── uploads/              # 사용자 업로드 (사진/문서)
 │   ├── 2026/05/...
 │   └── ...
@@ -882,8 +882,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "proddata" {
       "Principal": "*",
       "Action": "s3:*",
       "Resource": [
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z",
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/*"
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z",
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/*"
       ],
       "Condition": {
         "Bool": { "aws:SecureTransport": "false" }
@@ -899,24 +899,24 @@ resource "aws_s3_bucket_lifecycle_configuration" "proddata" {
         "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z",
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/uploads/*",
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/static/*"
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z",
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/uploads/*",
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/static/*"
       ]
     },
     {
       "Sid": "EKSIRSAAccess",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::<ACCOUNT_ID>:role/eks-irsa-flaskapp-kosa-project-jh"
+        "AWS": "arn:aws:iam::<ACCOUNT_ID>:role/eks-irsa-flaskapp-kosa-project-team3-snow"
       },
       "Action": [
         "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"
       ],
       "Resource": [
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z",
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/uploads/*",
-        "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/static/*"
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z",
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/uploads/*",
+        "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/static/*"
       ]
     },
     {
@@ -926,7 +926,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "proddata" {
         "Service": "logdelivery.elasticloadbalancing.amazonaws.com"
       },
       "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-jh-lai9z/alb-access-logs/*"
+      "Resource": "arn:aws:s3:::flaskapp-proddata-kosa-project-team3-snow-lai9z/alb-access-logs/*"
     }
   ]
 }
@@ -984,8 +984,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "proddata" {
       },
       "Action": "s3:*",
       "Resource": [
-        "arn:aws:s3:::flaskapp-tfstate-kosa-project-jh-a3asx",
-        "arn:aws:s3:::flaskapp-tfstate-kosa-project-jh-a3asx/*"
+        "arn:aws:s3:::flaskapp-tfstate-kosa-project-team3-snow-a3asx",
+        "arn:aws:s3:::flaskapp-tfstate-kosa-project-team3-snow-a3asx/*"
       ]
     },
     {
@@ -994,8 +994,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "proddata" {
       "Principal": "*",
       "Action": "s3:*",
       "Resource": [
-        "arn:aws:s3:::flaskapp-tfstate-kosa-project-jh-a3asx",
-        "arn:aws:s3:::flaskapp-tfstate-kosa-project-jh-a3asx/*"
+        "arn:aws:s3:::flaskapp-tfstate-kosa-project-team3-snow-a3asx",
+        "arn:aws:s3:::flaskapp-tfstate-kosa-project-team3-snow-a3asx/*"
       ],
       "Condition": {
         "Bool": { "aws:SecureTransport": "false" }
@@ -1042,13 +1042,13 @@ resource "aws_dynamodb_table" "tf_lock" {
 ```bash
 # 1. 이전 버전 목록 조회
 aws s3api list-object-versions \
-  --bucket flaskapp-tfstate-kosa-project-jh-a3asx \
+  --bucket flaskapp-tfstate-kosa-project-team3-snow-a3asx \
   --prefix envs/dr/terraform.tfstate
 
 # 2. 특정 버전 복구
 aws s3api copy-object \
-  --bucket flaskapp-tfstate-kosa-project-jh-a3asx \
-  --copy-source 'flaskapp-tfstate-kosa-project-jh-a3asx/envs/dr/terraform.tfstate?versionId=<VERSION_ID>' \
+  --bucket flaskapp-tfstate-kosa-project-team3-snow-a3asx \
+  --copy-source 'flaskapp-tfstate-kosa-project-team3-snow-a3asx/envs/dr/terraform.tfstate?versionId=<VERSION_ID>' \
   --key envs/dr/terraform.tfstate
 
 # 3. terraform plan으로 검증
@@ -1076,7 +1076,7 @@ aws route53 get-health-check-status --health-check-id <HC_ID>
 aws cloudwatch get-metric-statistics \
   --namespace AWS/DMS \
   --metric-name CDCLatencyTarget \
-  --dimensions Name=ReplicationInstanceIdentifier,Value=dms-flaskapp-kosa-project-jh Name=ReplicationTaskIdentifier,Value=dms-task-flaskapp \
+  --dimensions Name=ReplicationInstanceIdentifier,Value=dms-flaskapp-kosa-project-team3-snow Name=ReplicationTaskIdentifier,Value=dms-task-flaskapp \
   --start-time $(date -u -d '10 min ago' +%FT%T) \
   --end-time $(date -u +%FT%T) \
   --period 60 --statistics Maximum
@@ -1102,7 +1102,7 @@ aws dms describe-replication-tasks \
 
 # 4-4. RDS endpoint 확인
 aws rds describe-db-instances \
-  --db-instance-identifier rds-flaskapp-kosa-project-jh \
+  --db-instance-identifier rds-flaskapp-kosa-project-team3-snow \
   --query 'DBInstances[0].Endpoint.Address'
 ```
 
@@ -1143,7 +1143,7 @@ curl -X POST https://flaskapp.example.com/api/test-record -d '{"test":"failover"
 
 # S3 쓰기 테스트
 curl -X POST -F "file=@test.jpg" https://flaskapp.example.com/api/upload
-aws s3 ls s3://flaskapp-proddata-kosa-project-jh-lai9z/uploads/ | tail -1
+aws s3 ls s3://flaskapp-proddata-kosa-project-team3-snow-lai9z/uploads/ | tail -1
 ```
 
 ### 10.2 Failback (AWS → On-prem) — 가장 어려운 절차
@@ -1153,7 +1153,7 @@ aws s3 ls s3://flaskapp-proddata-kosa-project-jh-lai9z/uploads/ | tail -1
 ```bash
 # 1. AWS RDS를 read-only로 (쓰기 차단)
 aws rds modify-db-parameter-group \
-  --db-parameter-group-name pg-mariadb-flaskapp-kosa-project-jh \
+  --db-parameter-group-name pg-mariadb-flaskapp-kosa-project-team3-snow \
   --parameters "ParameterName=read_only,ParameterValue=1,ApplyMethod=immediate"
 
 # 2. AWS App 일시 점검 모드 (운영 정책에 따라)
@@ -1304,8 +1304,8 @@ module "dms" {
 module "s3" {
   source = "../../modules/s3"
 
-  proddata_bucket_name = "flaskapp-proddata-kosa-project-jh-lai9z"
-  tfstate_bucket_name  = "flaskapp-tfstate-kosa-project-jh-a3asx"
+  proddata_bucket_name = "flaskapp-proddata-kosa-project-team3-snow-lai9z"
+  tfstate_bucket_name  = "flaskapp-tfstate-kosa-project-team3-snow-a3asx"
   kms_s3_arn           = module.kms.s3_arn
   onprem_iam_user_arn  = var.onprem_iam_user_arn
   irsa_role_arn        = try(module.eks.irsa_flaskapp_arn, "")
@@ -1323,13 +1323,13 @@ State 책임을 두 stack에 **나눠** 관리:
 # bootstrap stack
 cd terraform/bootstrap
 terraform init
-terraform import aws_s3_bucket.tfstate     flaskapp-tfstate-kosa-project-jh-a3asx
+terraform import aws_s3_bucket.tfstate     flaskapp-tfstate-kosa-project-team3-snow-a3asx
 terraform import aws_dynamodb_table.lock   terraform-state-lock
 
 # envs/dr stack
 cd terraform/envs/dr
 terraform init
-terraform import 'module.s3.aws_s3_bucket.proddata'   flaskapp-proddata-kosa-project-jh-lai9z
+terraform import 'module.s3.aws_s3_bucket.proddata'   flaskapp-proddata-kosa-project-team3-snow-lai9z
 terraform import 'module.ecr.aws_ecr_repository.this' flaskapp
 ```
 
@@ -1343,7 +1343,7 @@ terraform import 'module.ecr.aws_ecr_repository.this' flaskapp
 
 ### Phase 1: RDS 기본 동작
 
-- [ ] `aws rds describe-db-instances --db-instance-identifier rds-flaskapp-kosa-project-jh` → Status `available`
+- [ ] `aws rds describe-db-instances --db-instance-identifier rds-flaskapp-kosa-project-team3-snow` → Status `available`
 - [ ] Multi-AZ `true`
 - [ ] Publicly Accessible `false`
 - [ ] Storage Encrypted `true` (KMS Key ARN 올바른지)
