@@ -35,9 +35,17 @@ secret:
   FLASK_SECRET: "임의문자열"           # Flask 세션 암호화 키
 ```
 
-> ⚠️ **실무 주의사항**: 실제 서비스에서는 Secret 값을 Git에 올리지 않는다.  
-> Sealed Secrets 또는 AWS Secrets Manager + External Secrets Operator를 사용한다.  
-> 이 프로젝트는 학습 환경이므로 values.yaml에 직접 입력한다.
+> **보안 주의사항**: 이 레포지토리는 **Public**이므로 `values.yaml`에 실제 Secret 값을 절대 커밋하지 않는다.  
+> Secret은 반드시 `kubectl` 명령어로 클러스터에 직접 적용한다.
+>
+> ```bash
+> kubectl create secret generic flaskapp-secret \
+>   -n flaskapp-prod \
+>   --from-literal=DATABASE_PASSWORD=실제비번 \
+>   --from-literal=FLASK_SECRET=임의문자열
+> ```
+>
+> 향후 확장 시 Sealed Secrets 또는 AWS Secrets Manager + External Secrets Operator 도입을 권장한다.
 
 ---
 
