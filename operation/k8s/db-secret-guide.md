@@ -20,7 +20,7 @@ FlaskApp Pod는 이 두 리소스를 `envFrom`으로 읽어 환경변수로 사�
 
 ## Helm values.yaml 설정 위치
 
-`helm/flaskapp/values.yaml`에서 ConfigMap과 Secret 값을 관리한다.
+`helm/flaskapp/values.yaml`에서 ConfigMap 값을 관리한다.
 
 ```yaml
 config:
@@ -29,23 +29,33 @@ config:
   DATABASE_DB_NAME: "employees"
   AWS_DEFAULT_REGION: "ap-northeast-2"
   PHOTOS_BUCKET: "flaskapp-proddata-kosa-project-team3-snow-lai9z"
-
-secret:
-  DATABASE_PASSWORD: "<CHANGE_ME>"    # 실제 값은 kubectl로 직접 적용 (커밋 금지)
-  FLASK_SECRET: "<CHANGE_ME>"         # 실제 값은 kubectl로 직접 적용 (커밋 금지)
 ```
 
-> **보안 주의사항**: 이 레포지토리는 **Public**이므로 `values.yaml`에 실제 Secret 값을 절대 커밋하지 않는다.  
-> Secret은 반드시 `kubectl` 명령어로 클러스터에 직접 적용한다.
->
-> ```bash
-> kubectl create secret generic flaskapp-secret \
->   -n flaskapp-prod \
->   --from-literal=DATABASE_PASSWORD=실제비번 \
->   --from-literal=FLASK_SECRET=임의문자열
-> ```
->
-> 향후 확장 시 Sealed Secrets 또는 AWS Secrets Manager + External Secrets Operator 도입을 권장한다.
+> **Secret은 values.yaml에서 관리하지 않는다.**  
+> ArgoCD가 Git 기준으로 클러스터를 덮어쓰기 때문에, Secret을 Helm으로 관리하면 실제 비밀번호가 `<CHANGE_ME>`로 초기화되는 문제가 발생한다.  
+> Secret은 반드시 ArgoCD sync 전에 `kubectl`로 클러스터에 직접 생성한다.
+
+---
+
+## Secret 생성 (ArgoCD sync 전 필수)
+
+ArgoCD sync 전에 아래 명령어로 Secret을 먼저 생성해야 한다.
+
+```bash
+kubectl create secret generic flaskapp-secret \
+  -n flaskapp-prod \
+  --from-literal=DATABASE_PASSWORD=실제비번 \
+  --from-literal=FLASK_SECRET=임의문자열
+```
+
+생성 확인:
+
+```bash
+kubectl get secret flaskapp-secret -n flaskapp-prod
+```
+
+> Secret은 kubectl로 직접 생성했기 때문에 ArgoCD가 관리하지 않는다.  
+> ArgoCD sync 또는 selfHeal이 실행되어도 이 Secret은 삭제되거나 덮어씌워지지 않는다.
 
 ---
 
@@ -66,23 +76,6 @@ data:
   AWS_DEFAULT_REGION: {{ .Values.config.AWS_DEFAULT_REGION | quote }}
   PHOTOS_BUCKET: {{ .Values.config.PHOTOS_BUCKET | quote }}
 ```
-
-### Secret (`helm/flaskapp/templates/secret.yaml`)
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Release.Name }}-secret
-  namespace: {{ .Release.Namespace }}
-type: Opaque
-stringData:
-  DATABASE_PASSWORD: {{ .Values.secret.DATABASE_PASSWORD | quote }}
-  FLASK_SECRET: {{ .Values.secret.FLASK_SECRET | quote }}
-```
-
-> `stringData`를 사용하면 base64 인코딩 없이 평문으로 작성할 수 있다.  
-> K8s가 내부적으로 자동 인코딩해서 저장한다.
 
 ---
 
