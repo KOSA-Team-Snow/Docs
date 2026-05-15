@@ -28,11 +28,11 @@ config:
   DATABASE_USER: "kosa"
   DATABASE_DB_NAME: "employees"
   AWS_DEFAULT_REGION: "ap-northeast-2"
-  PHOTOS_BUCKET: "버킷명"
+  PHOTOS_BUCKET: "flaskapp-proddata-kosa-project-team3-snow-lai9z"
 
 secret:
-  DATABASE_PASSWORD: "실제비번"        # 팀원 D 확인
-  FLASK_SECRET: "임의문자열"           # Flask 세션 암호화 키
+  DATABASE_PASSWORD: "<CHANGE_ME>"    # 실제 값은 kubectl로 직접 적용 (커밋 금지)
+  FLASK_SECRET: "<CHANGE_ME>"         # 실제 값은 kubectl로 직접 적용 (커밋 금지)
 ```
 
 > **보안 주의사항**: 이 레포지토리는 **Public**이므로 `values.yaml`에 실제 Secret 값을 절대 커밋하지 않는다.  
@@ -57,8 +57,8 @@ secret:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: flaskapp-config
-  namespace: {{ .Values.namespace | default "flaskapp-prod" }}
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
 data:
   DATABASE_HOST: {{ .Values.config.DATABASE_HOST | quote }}
   DATABASE_USER: {{ .Values.config.DATABASE_USER | quote }}
@@ -73,8 +73,8 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: flaskapp-secret
-  namespace: {{ .Values.namespace | default "flaskapp-prod" }}
+  name: {{ .Release.Name }}-secret
+  namespace: {{ .Release.Namespace }}
 type: Opaque
 stringData:
   DATABASE_PASSWORD: {{ .Values.secret.DATABASE_PASSWORD | quote }}
@@ -93,9 +93,9 @@ stringData:
 ```yaml
 envFrom:
   - configMapRef:
-      name: flaskapp-config
+      name: {{ .Release.Name }}-config
   - secretRef:
-      name: flaskapp-secret
+      name: {{ .Release.Name }}-secret
 ```
 
 Pod 안에서 환경변수로 읽힌다:
