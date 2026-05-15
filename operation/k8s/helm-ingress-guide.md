@@ -197,7 +197,26 @@ curl http://flaskapp.onprem.local/
 
 ---
 
-## 9. 환경별 values 파일 (Day 11 예정)
+## 9. ArgoCD와의 연동
+
+이 프로젝트에서는 `helm install` / `helm upgrade`를 직접 실행하지 않는다.
+ArgoCD가 Git 저장소를 감시하다가 변경이 생기면 자동으로 `helm upgrade`에 해당하는 동작을 수행한다.
+
+```
+build-push.sh 실행 (Flaskapp 레포)
+  ↓ docker build --platform linux/amd64
+  ↓ ECR push (git SHA 태그 + latest 태그)
+  ↓ 스크립트가 SHA 값 출력 → infra 레포 values.yaml image.tag를 수동으로 해당 SHA로 변경 후 git push
+ArgoCD 감지 (automated sync)
+  ↓ helm upgrade 자동 실행
+FlaskApp Pod 롤링 업데이트
+```
+
+ArgoCD Application 설정 파일은 `infra/argocd/apps/flaskapp.yaml` 참고.
+
+---
+
+## 10. 환경별 values 파일 (Day 11 예정)
 
 On-prem / AWS DR 환경별로 달라지는 값만 별도 파일로 관리한다.
 
