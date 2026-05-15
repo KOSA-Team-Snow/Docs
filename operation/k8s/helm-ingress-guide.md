@@ -31,10 +31,12 @@ infra/helm/flaskapp/
     ├── deployment.yaml
     ├── service.yaml
     ├── configmap.yaml
-    ├── secret.yaml
     ├── ingress.yaml
     └── NOTES.txt         # helm install 완료 후 출력 메시지
 ```
+
+> `secret.yaml`은 Helm chart에서 제거됨 (infra #17).  
+> Secret은 ArgoCD sync 전에 `kubectl create secret`으로 직접 생성한다. ([db-secret-guide.md](./db-secret-guide.md) 참고)
 
 ---
 
@@ -80,10 +82,6 @@ config:
   DATABASE_DB_NAME: "employees"
   AWS_DEFAULT_REGION: "ap-northeast-2"
   PHOTOS_BUCKET: "flaskapp-proddata-kosa-project-team3-snow-lai9z"
-
-secret:
-  DATABASE_PASSWORD: "<CHANGE_ME>"  # 실제 배포 시 교체
-  FLASK_SECRET: "<CHANGE_ME>"
 
 resources:
   requests:
@@ -202,15 +200,8 @@ curl http://flaskapp.onprem.local/
 이 프로젝트에서는 `helm install` / `helm upgrade`를 직접 실행하지 않는다.
 ArgoCD가 Git 저장소를 감시하다가 변경이 생기면 자동으로 `helm upgrade`에 해당하는 동작을 수행한다.
 
-```
-build-push.sh 실행 (Flaskapp 레포)
-  ↓ docker build --platform linux/amd64
-  ↓ ECR push (git SHA 태그 + latest 태그)
-  ↓ 스크립트가 SHA 값 출력 → infra 레포 values.yaml image.tag를 수동으로 해당 SHA로 변경 후 git push
-ArgoCD 감지 (automated sync)
-  ↓ helm upgrade 자동 실행
-FlaskApp Pod 롤링 업데이트
-```
+이미지 빌드 → ECR push → values.yaml 업데이트 → ArgoCD 자동 배포 전체 흐름은
+[ecr-build-push-guide.md](./ecr-build-push-guide.md) 참고.
 
 ArgoCD Application 설정 파일은 `infra/argocd/apps/flaskapp.yaml` 참고.
 
