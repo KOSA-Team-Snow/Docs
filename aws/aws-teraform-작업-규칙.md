@@ -20,7 +20,7 @@ AWS 리소스는 실제 비용이 발생할 수 있고, Terraform state 기준�
 | -------------- | ------------------------------------------------ |
 | AWS Profile    | 개인 로컬 환경에 맞게 설정. 예: `kosa-team-snow` |
 | Region         | `ap-northeast-2`                                 |
-| Terraform 경로 | `infra/terraform/aws-dr/envs/dr`                 |
+| Terraform 경로 | `infra/aws/terraform/envs/dr`                    |
 
 ## 4. 작업 단계
 
@@ -35,7 +35,7 @@ AWS 리소스는 실제 비용이 발생할 수 있고, Terraform state 기준�
 기본 실행 예시는 아래와 같다.
 
 ```bash
-cd infra/terraform/aws-dr/envs/dr
+cd infra/aws/terraform/envs/dr
 
 export AWS_PROFILE=<본인 AWS profile 이름>
 export AWS_REGION=ap-northeast-2
