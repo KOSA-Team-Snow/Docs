@@ -2,7 +2,7 @@
 
 > 담당: 팀원 C (@ireneminhee)  
 > 관련 이슈: #15  
-> 상태: Helm chart 문서화 완료 / Ingress 접속 확인은 클러스터 구성 후 추가 예정
+> 상태: Helm chart 문서화 완료 / ADR-002 기준 Ingress NodePort 접속 확인 완료
 
 ---
 
@@ -101,12 +101,18 @@ resources:
 ```
 사용자 요청 (flaskapp.onprem.local)
   ↓
-Nginx Ingress Controller (MetalLB: 172.16.41.110)
+HAProxy VIP
+  ↓
+Worker Node NodePort
+  ↓
+Nginx Ingress Controller
   ↓
 flaskapp-service (ClusterIP: 80)
   ↓
 FlaskApp Pod
 ```
+
+ADR-002 기준으로 `NodePort`는 FlaskApp Service가 아니라 Nginx Ingress Controller Service에 적용한다. FlaskApp Helm chart의 `service.type`은 `ClusterIP`로 유지한다.
 
 ```yaml
 # templates/ingress.yaml
@@ -181,17 +187,28 @@ helm uninstall flaskapp -n flaskapp-prod
 
 ---
 
-## 8. Ingress 접속 확인 (클러스터 구성 후 추가 예정)
+## 8. Ingress 접속 확인
 
-> 팀원 B의 Nginx Ingress Controller 설치 완료 후 아래 내용을 채운다.
+Nginx Ingress Controller가 `NodePort` 타입으로 설치되어 있으면 아래처럼 확인한다.
 
 ```bash
-# Ingress 상태 확인
 kubectl get ingress -n flaskapp-prod
-
-# 로컬 hosts 파일에 등록 후 접속 테스트
-curl http://flaskapp.onprem.local/
+kubectl get svc -n ingress-nginx ingress-nginx-controller
 ```
+
+확인된 예시는 다음과 같다.
+
+```text
+ingress-nginx-controller   NodePort   80:32109/TCP,443:31232/TCP
+```
+
+NodePort 경유 접속 테스트:
+
+```bash
+curl http://172.16.43.114:32109/info -H "Host: flaskapp.onprem.local"
+```
+
+최종 구조에서는 HAProxy가 Worker Node의 Ingress NodePort로 트래픽을 전달하고, 사용자는 NodePort를 직접 입력하지 않는다.
 
 ---
 
