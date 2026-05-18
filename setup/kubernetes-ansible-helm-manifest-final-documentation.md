@@ -16,6 +16,9 @@
   - `k8s-worker-1`: `172.16.43.110`
   - `k8s-worker-2`: `172.16.43.111`
   - `k8s-worker-3`: `172.16.43.112`
+  - `k8s-worker-4`: `172.16.43.113`
+  - `k8s-worker-5`: `172.16.43.114`
+
 - Kubernetes API VIP: `172.16.43.99:6443`
 - CNI target: Calico `v3.28.5`
 - Pod CIDR: `10.244.0.0/16`
