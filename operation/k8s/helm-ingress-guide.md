@@ -78,8 +78,8 @@ ingress:
 
 config:
   DATABASE_HOST: "172.16.43.160"    # mariadb-1 VM IP (VLAN 30)
-  DATABASE_USER: "kosa"
-  DATABASE_DB_NAME: "employees"
+  DATABASE_USER: "flaskapp"
+  DATABASE_DB_NAME: "flaskapp"
   AWS_DEFAULT_REGION: "ap-northeast-2"
   PHOTOS_BUCKET: "flaskapp-proddata-kosa-project-team3-snow-lai9z"
 
