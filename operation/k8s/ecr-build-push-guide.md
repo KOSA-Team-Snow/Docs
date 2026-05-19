@@ -159,3 +159,4 @@ ArgoCD UI에서도 `flaskapp` Application의 상태가 `Synced` → `Healthy`로
 | `exec format error` (Pod CrashLoop) | `--platform` 없이 arm64로 빌드 | `build-push.sh` 사용 (자동으로 `linux/amd64` 적용) |
 | ArgoCD가 새 이미지를 감지 못함 | `values.yaml` 태그 미변경 | `image.tag`를 새 SHA로 업데이트 후 push |
 | ECR 로그인 실패 | 자격증명 만료 또는 권한 없음 | IAM 권한 확인 (`ecr:GetAuthorizationToken`, `ecr:BatchCheckLayerAvailability`) |
+| `ImagePullBackOff` / ECR `403 Forbidden` | 클러스터의 ECR pull secret 없음 또는 만료 | `flaskapp-ecr-pull-secret-refresh-runbook.md` 참고 |

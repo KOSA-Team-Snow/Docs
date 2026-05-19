@@ -146,6 +146,10 @@ root-app   Synced        Healthy
 
 ## 6. ECR Pull Secret 생성
 
+> 현재 권장 방식은 `ecr-regcred`를 Deployment의 `imagePullSecrets`로 참조하고, `flaskapp-ecr-secret-refresh` CronJob으로 6시간마다 갱신하는 방식이다. 자세한 운영/복구 절차는 `flaskapp-ecr-pull-secret-refresh-runbook.md`를 참고한다.
+>
+> 아래 내용은 초기 배포 당시 사용한 임시 수동 방식이다.
+
 처음 FlaskApp Pod는 아래 오류로 `ImagePullBackOff`가 발생했다.
 
 ```text
@@ -377,14 +381,20 @@ http://flaskapp.onprem.local/info
 
 ### 10.2 Helm chart에 imagePullSecrets 반영
 
-현재 ECR pull secret은 직접 생성하고 default ServiceAccount에 patch했다.
+초기에는 ECR pull secret을 직접 생성하고 default ServiceAccount에 patch했다.
 
 ```bash
 kubectl patch serviceaccount default -n flaskapp-prod \
   -p '{"imagePullSecrets":[{"name":"ecr-registry-secret"}]}'
 ```
 
-이 방식은 동작하지만 GitOps 관점에서는 클러스터에 직접 넣은 변경이다. 향후 Helm chart에 `imagePullSecrets` 설정을 추가하고, Secret 자체는 Git에 저장하지 않는 방식으로 정리하는 것이 좋다.
+이 방식은 동작하지만 GitOps 관점에서는 클러스터에 직접 넣은 변경이다. 현재는 Helm chart에 `imagePullSecrets` 설정을 추가하고, `ecr-regcred` Secret을 CronJob으로 주기 갱신하는 방식으로 정리했다.
+
+현재 권장 문서:
+
+```text
+flaskapp-ecr-pull-secret-refresh-runbook.md
+```
 
 ### 10.3 ingress-nginx Helm 전환 여부 결정
 
@@ -462,17 +472,26 @@ ssh kosa@172.16.43.100 "curl -k https://172.16.43.99:6443/readyz"
 
 ```text
 authorization failed: no basic auth credentials
+403 Forbidden
 ```
 
 원인:
 
 - private ECR pull 인증 정보 없음
+- ECR pull secret 만료 또는 미생성
 
 해결:
 
-- `ecr-registry-secret` 생성
-- `flaskapp-prod` namespace의 default ServiceAccount에 `imagePullSecrets` 연결
-- Deployment 재시작
+- `ecr-refresh-aws-credentials` Secret 생성
+- `flaskapp-ecr-secret-refresh` CronJob으로 `ecr-regcred` 생성/갱신
+- Deployment가 `imagePullSecrets: ecr-regcred`를 사용하도록 Helm chart 반영
+- 실패한 Pod 삭제 또는 Deployment 재시작
+
+상세 절차:
+
+```text
+flaskapp-ecr-pull-secret-refresh-runbook.md
+```
 
 ### 11.3 Ingress Controller ContainerCreating
 
