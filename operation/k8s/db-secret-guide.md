@@ -25,8 +25,8 @@ FlaskApp Pod는 이 두 리소스를 `envFrom`으로 읽어 환경변수로 사�
 ```yaml
 config:
   DATABASE_HOST: "172.16.43.160"      # MariaDB VM IP (VLAN 30)
-  DATABASE_USER: "kosa"
-  DATABASE_DB_NAME: "employees"
+  DATABASE_USER: "flaskapp"
+  DATABASE_DB_NAME: "flaskapp"
   AWS_DEFAULT_REGION: "ap-northeast-2"
   PHOTOS_BUCKET: "flaskapp-proddata-kosa-project-team3-snow-lai9z"
 ```
@@ -96,8 +96,8 @@ Pod 안에서 환경변수로 읽힌다:
 ```bash
 kubectl exec -n flaskapp-prod <pod명> -- env | grep DATABASE
 # DATABASE_HOST=172.16.43.160
-# DATABASE_USER=kosa
-# DATABASE_DB_NAME=employees
+# DATABASE_USER=flaskapp
+# DATABASE_DB_NAME=flaskapp
 # DATABASE_PASSWORD=***
 ```
 
@@ -119,9 +119,9 @@ MariaDB VM (172.16.43.160, VLAN 30)
 
 FlaskApp이 정상 연결되려면 MariaDB 측에서 아래가 준비돼 있어야 한다.
 
-- [ ] `employees` 데이터베이스 생성
-- [ ] `employees` 테이블 스키마 생성
-- [ ] `kosa` 유저 외부 접속 허용 (`GRANT ALL ON employees.* TO 'kosa'@'%'`)
+- [ ] `flaskapp` 데이터베이스 생성
+- [ ] `employee` 테이블 스키마 생성
+- [ ] `flaskapp` 유저 Pod 대역 접속 허용
 - [ ] MariaDB binlog 활성화 (DMS CDC 복제용)
 
 ---
