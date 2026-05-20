@@ -49,8 +49,6 @@ User: flaskapp
 Host: 172.16.43.%
 ```
 
-데이터베이스 목록에는 `employees`, `flaskapp`이 모두 있었다.
-
 ```sql
 SHOW DATABASES;
 ```
@@ -88,6 +86,16 @@ source:
 ```text
 infra/helm/flaskapp/values.yaml
 ```
+
+현재 배포 기준에서 앱이 읽는 DB는 `flaskapp`, 테이블은 `employee`이다. 즉 실제 앱 데이터 테이블은 `flaskapp.employee`이다.
+
+참고로 아래 raw manifest는 현재 ArgoCD Application 경로가 아니므로 운영 배포 기준으로 사용하지 않는다.
+
+```text
+infra/k8s/flaskapp/configmap.yaml
+```
+
+이 파일은 legacy raw manifest이므로 현재 배포 기준은 아니지만, 혼동을 줄이기 위해 값은 현재 기준인 `DATABASE_DB_NAME: "flaskapp"`과 `DATABASE_USER: "flaskapp"`으로 맞춰둔다.
 
 수정한 DB 설정:
 
