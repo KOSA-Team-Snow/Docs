@@ -271,19 +271,27 @@ Inside CIDR: 169.254.154.188/30
 
 DMS Source Endpoint는 네트워크 timeout 단계는 통과했고, MariaDB 인증 단계까지 도달했다.
 
-현재 남은 오류는 DB 계정/권한 문제다.
+초기 확인 시 남은 오류는 DB 계정/권한 문제였다.
 
 ```text
 Access denied for user 'dms_user'@'10.20.20.94'
 ```
 
+이후 On-prem MariaDB에 DMS 전용 유저를 생성했다.
+
+```text
+User: dms_user
+Purpose: AWS DMS source endpoint / CDC replication
+Password: 실제 값은 문서와 Git에 기록하지 않음
+```
+
 후속 작업:
 
 ```text
-1. MariaDB dms_user host 조건 확인
+1. MariaDB dms_user host 조건이 DMS source IP와 일치하는지 확인
 2. DMS replication instance source IP 확인
-3. dms_user 비밀번호 확인
-4. DMS에 필요한 최소 권한 부여
+3. DMS endpoint에 저장된 dms_user 비밀번호 확인
+4. DMS에 필요한 최소 권한 부여 여부 확인
 5. DMS Source Endpoint connection test 재수행
 6. 검증 완료 후 테스트 EC2 10.20.10.194 삭제
 ```

@@ -135,6 +135,25 @@ FlaskApp의 데이터베이스를 어떤 엔진으로, 어디에 배치해, 어�
 - 고유한 `server_id`
 - DMS가 binlog를 읽을 수 있는 replication 권한을 가진 별도 user
 
+### DMS 전용 DB 유저
+
+On-prem MariaDB에 DMS CDC 복제 전용 유저를 생성했다.
+
+```text
+User: dms_user
+Purpose: AWS DMS source endpoint / CDC replication
+Password: 실제 값은 문서와 Git에 기록하지 않고 Secret 또는 로컬 보안 저장소에서 관리
+```
+
+권장 권한 범위:
+
+```sql
+GRANT REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'dms_user'@'<DMS_SOURCE_IP_OR_CIDR>';
+GRANT SELECT ON flaskapp.* TO 'dms_user'@'<DMS_SOURCE_IP_OR_CIDR>';
+```
+
+실제 host 조건은 DMS replication instance가 On-prem MariaDB에 접속할 때 보이는 source IP 기준으로 제한한다.
+
 ---
 
 ## 7. 데이터 보호: Ceph RBD

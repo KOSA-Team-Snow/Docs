@@ -123,6 +123,9 @@ FlaskApp이 정상 연결되려면 MariaDB 측에서 아래가 준비돼 있어�
 - [ ] `employee` 테이블 스키마 생성
 - [ ] `flaskapp` 유저 Pod 대역 접속 허용
 - [ ] MariaDB binlog 활성화 (DMS CDC 복제용)
+- [x] DMS CDC 복제 전용 DB 유저 `dms_user` 생성
+
+참고: `dms_user`의 실제 비밀번호는 문서와 Git에 기록하지 않고, DMS endpoint 설정 또는 별도 Secret 저장소에서 관리한다.
 
 ---
 

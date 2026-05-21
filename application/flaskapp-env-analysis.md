@@ -17,9 +17,9 @@ FlaskApp 소스코드를 분석하여 컨테이너 실행에 필요한 환경변
 |---|---|---|---|
 | `PHOTOS_BUCKET` | 필수 | AWS S3 버킷 이름 (이미지 저장용) | my-flaskapp-bucket |
 | `DATABASE_HOST` | 필수 | MariaDB 서버 주소 | 172.16.43.160 (VLAN 30 내부망) |
-| `DATABASE_USER` | 필수 | DB 접속 계정 | kosa |
-| `DATABASE_PASSWORD` | 필수 | DB 접속 비밀번호 | kosa1004 |
-| `DATABASE_DB_NAME` | 필수 | 사용할 DB 이름 | employees |
+| `DATABASE_USER` | 필수 | DB 접속 계정 | flaskapp |
+| `DATABASE_PASSWORD` | 필수 | DB 접속 비밀번호 | K8s Secret에 저장 |
+| `DATABASE_DB_NAME` | 필수 | 사용할 DB 이름 | flaskapp |
 | `AWS_DEFAULT_REGION` | 필수 | AWS 리전 | ap-northeast-2 |
 | `DYNAMO_MODE` | 선택 | 설정 시 MariaDB 대신 DynamoDB 사용 (우리 프로젝트는 미사용) | 1 |
 | `AWS_ACCESS_KEY_ID` | 선택 | IAM Role 없을 때 S3 접근용 AWS 자격증명 | - |
@@ -33,7 +33,7 @@ FlaskApp 소스코드를 분석하여 컨테이너 실행에 필요한 환경변
 
 | 항목 | 설명 |
 |---|---|
-| MariaDB / MySQL | 직원 정보 저장 (employee 테이블) |
+| MariaDB / MySQL | 직원 정보 저장 (`flaskapp.employee` 테이블) |
 | AWS S3 | 직원 사진 이미지 저장 및 presigned URL 생성 |
 | AWS 자격증명 | boto3가 S3 접근 시 필요 (IAM Role 또는 환경변수) |
 | EC2 Instance Metadata | 인스턴스 ID, 가용영역 조회 (없으면 fake 값으로 fallback) |
@@ -63,9 +63,9 @@ pip3 install -r requirements.txt
 # 2. 환경변수 설정
 export PHOTOS_BUCKET=<S3 버킷 이름>
 export DATABASE_HOST=<MariaDB 호스트>
-export DATABASE_USER=<DB 유저>
+export DATABASE_USER=flaskapp
 export DATABASE_PASSWORD=<DB 비밀번호>
-export DATABASE_DB_NAME=employees
+export DATABASE_DB_NAME=flaskapp
 export AWS_DEFAULT_REGION=ap-northeast-2
 
 # 3. DB 테이블 생성 (최초 1회)
@@ -78,8 +78,8 @@ FLASK_APP=application.py flask run --host=0.0.0.0 --port=80
 ## 확인 필요 항목
 
 - [ ] AWS S3 버킷 이름 팀 내 확정
-- [ ] MariaDB 서버 IP 확정 (현재 예상: 172.16.0.160)
-- [ ] DB 계정명 및 비밀번호 팀원 D와 협의
+- [x] MariaDB 서버 IP 확정: 172.16.43.160
+- [x] DB 계정명 확정: flaskapp
 - [ ] AWS 자격증명 방식 확정 (IAM Role vs 환경변수)
 - [ ] `FLASK_SECRET` 환경변수 처리 방식 결정
 

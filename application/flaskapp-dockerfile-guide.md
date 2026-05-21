@@ -100,9 +100,9 @@ docker images | grep flaskapp
 ```bash
 docker run -p 8080:80 \
   -e DATABASE_HOST=172.16.43.160 \
-  -e DATABASE_USER=kosa \
-  -e DATABASE_PASSWORD=kosa1004 \
-  -e DATABASE_DB_NAME=employees \
+  -e DATABASE_USER=flaskapp \
+  -e DATABASE_PASSWORD=<DB비밀번호> \
+  -e DATABASE_DB_NAME=flaskapp \
   -e AWS_DEFAULT_REGION=ap-northeast-2 \
   -e PHOTOS_BUCKET=<S3버킷명> \
   flaskapp:latest
@@ -119,11 +119,11 @@ K8s 배포 시에는 ConfigMap과 Secret으로 주입한다. (Day 5 참고)
 | 환경변수 | 종류 | 값 |
 |----------|------|-----|
 | `DATABASE_HOST` | ConfigMap | `172.16.43.160` |
-| `DATABASE_USER` | ConfigMap | `kosa` |
-| `DATABASE_DB_NAME` | ConfigMap | `employees` |
+| `DATABASE_USER` | ConfigMap | `flaskapp` |
+| `DATABASE_DB_NAME` | ConfigMap | `flaskapp` |
 | `AWS_DEFAULT_REGION` | ConfigMap | `ap-northeast-2` |
 | `PHOTOS_BUCKET` | ConfigMap | S3 버킷명 |
-| `DATABASE_PASSWORD` | Secret | `kosa1004` |
+| `DATABASE_PASSWORD` | Secret | DB 비밀번호 |
 | `FLASK_SECRET` | Secret | 임의 문자열 |
 
 > `DYNAMO_MODE`는 설정하지 않는다. 설정 시 MariaDB 대신 DynamoDB로 전환됨.
