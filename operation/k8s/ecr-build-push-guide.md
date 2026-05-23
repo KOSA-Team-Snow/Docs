@@ -3,6 +3,10 @@
 > 담당: 팀원 C (@ireneminhee)  
 > 관련 이슈: #18
 
+> **2026-05-23 업데이트**: ECR push 및 values.yaml 업데이트는 GitHub Actions CD로 자동화되었다.
+> Flaskapp main에 merge하면 자동으로 처리된다. 아래 수동 방법은 긴급 상황 또는 로컬 테스트용으로만 사용한다.
+> 자동화 파이프라인 전체 구조는 `github-actions-cicd-guide.md` 참고.
+
 ---
 
 ## 개요
@@ -10,11 +14,17 @@
 FlaskApp 소스코드를 Docker 이미지로 빌드하고 AWS ECR에 push한 뒤, infra 레포의 `values.yaml`을 업데이트하면 ArgoCD가 자동으로 새 이미지를 감지해 배포한다.
 
 ```
-build-push.sh 실행 (Flaskapp 레포)
+[자동] Flaskapp main push
+  ↓ GitHub Actions CD 실행
+  ↓ ECR push (git SHA 태그)
+  ↓ infra 레포 values.yaml image.tag 자동 업데이트
+  ↓ ArgoCD 감지 → FlaskApp Pod 롤링 업데이트
+
+[수동] build-push.sh 실행 (Flaskapp 레포)
   ↓ AWS 자격증명 확인
   ↓ ECR 로그인
   ↓ docker build --platform linux/amd64
-  ↓ ECR push (git SHA 태그 + latest 태그)
+  ↓ ECR push (git SHA 태그)
   ↓ 스크립트가 SHA 값 출력
 infra 레포 values.yaml image.tag를 해당 SHA로 수동 변경 후 git push
   ↓
@@ -42,9 +52,10 @@ git commit SHA 앞 7자리를 이미지 태그로 사용한다. `latest` 태그�
 | 태그 | 예시 | 용도 |
 |------|------|------|
 | git SHA | `a1b2c3d` | ArgoCD 배포 추적용 (변경 감지) |
-| latest | `latest` | 빠른 수동 pull 용도 |
 
 SHA 태그를 사용하면 어떤 커밋이 클러스터에 배포되어 있는지 정확히 알 수 있다. `latest`만 사용하면 이미지가 교체되어도 ArgoCD가 변경을 감지하지 못한다.
+
+> ECR 태그 불변성(immutable tag) 정책이 적용되어 있어 `latest` 태그는 push하지 않는다.
 
 ---
 
