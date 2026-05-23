@@ -85,7 +85,7 @@ imagePullSecrets:
 
 6시간마다 `ecr-regcred` docker-registry Secret을 갱신하는 CronJob을 추가했다.
 
-기본 설정:
+최종 설정:
 
 ```yaml
 ecrSecretRefresh:
@@ -96,19 +96,19 @@ ecrSecretRefresh:
   schedule: "0 */6 * * *"
   awsCredentialsSecretName: ecr-refresh-aws-credentials
   serviceAccountName: ecr-secret-refresher
-```
-
-주의: CronJob image tag는 실제 존재하는 태그를 사용해야 한다. 작업 중 `alpine/k8s:1.30.1`은 존재하지 않아 CronJob 자체가 `ImagePullBackOff`가 되었고, `alpine/k8s:1.30.14`로 수정해 복구했다.
-
-최종 설정:
-
-```yaml
-ecrSecretRefresh:
   image:
     repository: alpine/k8s
-    tag: "1.30.14"
+    tag: "1.30.14"        # 1.30.1은 존재하지 않아 ImagePullBackOff 발생 → 1.30.14로 수정
     pullPolicy: IfNotPresent
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  backoffLimit: 3          # 초기값 1 → 3으로 강화 (issue #85)
+  activeDeadlineSeconds: 600
+  retryAttempts: 3
+  retryInitialDelaySeconds: 5
 ```
+
+운영 메모: Kubernetes API, etcd, AWS ECR API가 순간적으로 실패해도 바로 ArgoCD `Degraded`로 이어지지 않도록 CronJob은 `backoffLimit: 3`을 사용하고, 스크립트 내부에서 ECR password 조회, Secret apply, Secret annotate 단계를 각각 3회 재시도한다. 재시도 간격은 5초부터 시작해 2배씩 늘린다. Job 전체 실행 시간은 10분으로 제한해 긴 hang이 다음 CronJob 실행을 막지 않게 한다.
 
 ## 사전 Secret 생성
 
