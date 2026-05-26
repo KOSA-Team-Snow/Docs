@@ -1,3 +1,7 @@
+> 문서 상태: 모니터링 배포 방식 결정 문서이다. 최신 기준은 Kubernetes 내부 `monitoring`/`logging`/`aiops` namespace 운영이며, Grafana host는 `grafana.team.snow.internal`이다.
+>
+> 이 문서의 `grafana.onprem.local`, `flaskapp.onprem.local` 예시는 과거 테스트 host로 본다.
+
 # Monitoring 배포 방식 검토
 
 ## 1. 검토 배경

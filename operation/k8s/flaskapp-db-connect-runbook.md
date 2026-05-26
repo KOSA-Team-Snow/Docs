@@ -1,3 +1,7 @@
+> 문서 상태: DB 연결 작업 당시 기록이다. 최신 접속 host는 `flaskapp.team.snow.internal`이며, DB 연결은 `172.16.43.160` 기준이다.
+>
+> 이 문서의 `flaskapp.onprem.local` 예시는 과거 테스트 host로 본다.
+
 # Flaskapp DB 연결 및 앱 테스트 작업 기록
 
 작성일: 2026-05-19

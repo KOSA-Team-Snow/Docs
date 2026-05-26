@@ -1,3 +1,5 @@
+> 문서 상태: 최신 Secret/ConfigMap 운영 기준에 가까운 문서이다. 최신 DB host는 `172.16.43.160`, 최신 FlaskApp host는 `flaskapp.team.snow.internal`이다.
+
 # FlaskApp K8s ConfigMap / Secret DB 연동 가이드
 
 > 담당: 팀원 C (@ireneminhee)  

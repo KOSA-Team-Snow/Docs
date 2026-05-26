@@ -8,7 +8,16 @@
 
 ## 개요
 
-FlaskApp 소스코드를 컨테이너 이미지로 패키징하기 위한 Dockerfile 작성 과정과 로컬 빌드 및 실행 방법을 정리한다.
+FlaskApp 소스코드를 컨테이너 이미지로 패키징하기 위한 Dockerfile 구조, 로컬 빌드, ECR push 흐름을 정리한다.
+
+## 현재 운영 이미지
+
+| 항목 | 값 |
+|---|---|
+| ECR repository | `080252689380.dkr.ecr.ap-northeast-2.amazonaws.com/flaskapp` |
+| 현재 운영 tag | `18b68fe` |
+| 운영 namespace | `flaskapp-prod` |
+| 운영 배포 방식 | ArgoCD + Helm chart `infra/helm/flaskapp` |
 
 ---
 
@@ -74,9 +83,15 @@ CLAUDE.md
 
 ```bash
 # Flaskapp 레포 루트에서 실행
-cd <Flaskapp 레포 경로>
+cd /Users/snowkwon/Desktop/KOSA/FlaskApp
 
 docker build -t flaskapp:latest .
+```
+
+Kubernetes 노드가 x86_64이므로 배포용 이미지는 `linux/amd64`로 빌드하는 것이 안전하다.
+
+```bash
+docker build --platform linux/amd64 -t flaskapp:<git-sha> .
 ```
 
 ### 빌드 성공 확인
@@ -128,6 +143,35 @@ K8s 배포 시에는 ConfigMap과 Secret으로 주입한다. (Day 5 참고)
 
 > `DYNAMO_MODE`는 설정하지 않는다. 설정 시 MariaDB 대신 DynamoDB로 전환됨.
 
+## ECR Push 흐름
+
+`FlaskApp/build-push.sh`는 다음 흐름으로 이미지를 빌드하고 ECR에 push한다.
+
+```text
+AWS 자격증명 확인
+-> git commit SHA 7자리로 image tag 생성
+-> ECR login
+-> docker build --platform linux/amd64
+-> ECR에 <sha> tag push
+-> latest tag push
+-> infra repo의 helm/flaskapp/values.yaml image.tag 업데이트 안내
+```
+
+실행:
+
+```bash
+cd /Users/snowkwon/Desktop/KOSA/FlaskApp
+bash build-push.sh
+```
+
+현재 운영 이미지 tag는 infra repo의 `infra/helm/flaskapp/values.yaml`에서 관리한다.
+
+```yaml
+image:
+  repository: 080252689380.dkr.ecr.ap-northeast-2.amazonaws.com/flaskapp
+  tag: '18b68fe'
+```
+
 ---
 
 ## 로그 확인
@@ -148,5 +192,6 @@ docker logs -f <컨테이너ID>
 ## 참고
 
 - 환경변수 전체 목록: [flaskapp-env-analysis.md](./flaskapp-env-analysis.md)
-- K8s 배포 시 ConfigMap/Secret 연동: Day 5 작업 예정
-- ECR 푸시 및 이미지 태깅: Day 7 작업 예정
+- 컨테이너 실행 가이드: [flaskapp-container-run-guide.md](./flaskapp-container-run-guide.md)
+- K8s 배포 시 ConfigMap/Secret 연동: `infra/helm/flaskapp/templates/configmap.yaml`, `infra/helm/flaskapp/templates/deployment.yaml`
+- ECR pull secret 갱신: `infra/helm/flaskapp/templates/ecr-secret-refresh.yaml`

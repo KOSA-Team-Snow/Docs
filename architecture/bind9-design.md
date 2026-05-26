@@ -1,3 +1,7 @@
+> 문서 상태: 최신 DNS/DR 전환 데모 기준에 가까운 문서이다. 현재 실측 기준 `flaskapp.team.snow.internal`과 `grafana.team.snow.internal`은 `172.16.42.99`로 해석된다.
+>
+> `db.team.snow.internal`은 현재 Bind9에 없으며 DB는 IP `172.16.43.160` 기준으로 연결한다.
+
 # Bind9 내부 DNS 설계
 
 ## 목적

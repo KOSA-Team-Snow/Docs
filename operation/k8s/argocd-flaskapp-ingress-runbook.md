@@ -1,3 +1,7 @@
+> 문서 상태: 2026-05-18 당시 작업 기록이다. 최신 기준은 `flaskapp.team.snow.internal` + HAProxy/Keepalived VIP `172.16.42.99` + ingress-nginx NodePort `30080/30443`이다.
+>
+> 이 문서의 `flaskapp.onprem.local` 및 worker NodePort 직접 접속 예시는 과거 검증 기록으로 본다.
+
 # ArgoCD FlaskApp 배포 및 Ingress 연결 기록
 
 > 담당: 팀원 C (@ireneminhee)  
