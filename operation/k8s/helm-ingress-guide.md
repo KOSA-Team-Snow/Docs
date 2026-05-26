@@ -1,3 +1,7 @@
+> 문서 상태: Helm/Ingress 작업 당시 기록이다. 최신 Ingress host는 `flaskapp.team.snow.internal`이며, 외부 진입은 HAProxy/Keepalived VIP `172.16.42.99`를 사용한다.
+>
+> 이 문서의 `flaskapp.onprem.local` 예시는 과거 테스트 host로 본다.
+
 # FlaskApp Helm Chart 구조 및 Ingress 연결 가이드
 
 > 담당: 팀원 C (@ireneminhee)  

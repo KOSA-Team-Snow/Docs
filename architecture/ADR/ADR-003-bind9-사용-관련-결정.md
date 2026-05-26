@@ -301,7 +301,7 @@ EKS FlaskApp
 
 ## 상세 설계 문서
 
-Bind9 VM의 이름, IP, VLAN, zone 파일, forwarder, 방화벽 정책, 검증 명령은 별도 설계 문서인 `blueprint/bind9-design.md`에서 관리한다.
+Bind9 VM의 이름, IP, VLAN, zone 파일, forwarder, 방화벽 정책, 검증 명령은 별도 설계 문서인 [`../bind9-design.md`](../bind9-design.md)에서 관리한다.
 
 ADR-003은 내부 Bind9 DNS를 선택한 결정 배경과 근거를 기록하고, 구체적인 구현 설계는 `bind9-design.md`에 분리한다.
 
@@ -337,4 +337,4 @@ Bind9는 정상 운영 시 서비스 도메인을 HAProxy VIP `172.16.42.99`로 
 
 이 결정은 공인 IP 제약이 있는 실습 환경에서도 DNS 기반 DR 전환 흐름을 일관되게 설명하고 검증하기 위한 것이다.
 
-Bind9 VM의 구체적인 이름, IP, VLAN, zone 구성, 방화벽 정책, 검증 명령은 `blueprint/bind9-design.md`에서 관리한다.
+Bind9 VM의 구체적인 이름, IP, VLAN, zone 구성, 방화벽 정책, 검증 명령은 [`../bind9-design.md`](../bind9-design.md)에서 관리한다.
